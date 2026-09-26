@@ -23,3 +23,7 @@ public/updates/
 
 # Local release configuration (the private update key belongs in Keychain)
 WhatThePort/update-config.env
+
+# Python tooling
+__pycache__/
+*.pyc

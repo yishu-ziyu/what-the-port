@@ -4,7 +4,9 @@ import Foundation
 /// `wtp`, the command-line side of the app. The app's executable runs it when
 /// invoked through a symlink named `wtp`, or with `--tui`.
 enum TerminalCommand {
-    private static let appIdentifier = "com.whattheport.app"
+    private static var appIdentifier: String {
+        executableBundle.bundleIdentifier ?? "com.whattheport.app"
+    }
 
     static var isRequested: Bool {
         let name = CommandLine.arguments.first.map { ($0 as NSString).lastPathComponent }
@@ -53,13 +55,16 @@ enum TerminalCommand {
     """
 
     /// Bundle.main doesn't follow the `wtp` symlink, so find the app from the real executable.
-    private static var version: String {
+    private static var executableBundle: Bundle {
         let app = Bundle.main.executableURL?.resolvingSymlinksInPath()
             .deletingLastPathComponent() // MacOS
             .deletingLastPathComponent() // Contents
             .deletingLastPathComponent()
-        let bundle = app.flatMap { $0.pathExtension == "app" ? Bundle(url: $0) : nil } ?? Bundle.main
-        return bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+        return app.flatMap { $0.pathExtension == "app" ? Bundle(url: $0) : nil } ?? Bundle.main
+    }
+
+    private static var version: String {
+        executableBundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
     }
 
     // MARK: - List
