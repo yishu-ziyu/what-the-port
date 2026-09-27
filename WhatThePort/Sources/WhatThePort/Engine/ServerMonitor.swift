@@ -216,12 +216,26 @@ final class ServerMonitor: ObservableObject {
 
     // MARK: - Actions
 
-    func stop(_ server: Server) {
+    /// `completion` reports whether a Homebrew service stopped; other servers
+    /// are signalled directly and always report success.
+    func stop(_ server: Server, completion: ((Bool) -> Void)? = nil) {
+        if let service = server.brewService {
+            ProcessControl.brewServices("stop", service) { [weak self] succeeded in
+                self?.scan()
+                completion?(succeeded)
+            }
+            return
+        }
+        completion?(true)
         ProcessControl.stop(server) { [weak self] in self?.scan() }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in self?.scan() }
     }
 
     func restart(_ server: Server) {
+        if let service = server.brewService {
+            ProcessControl.brewServices("restart", service) { [weak self] _ in self?.scan() }
+            return
+        }
         ProcessControl.restart(server) { [weak self] _ in self?.scan() }
     }
 

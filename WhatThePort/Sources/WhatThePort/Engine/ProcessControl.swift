@@ -23,6 +23,26 @@ enum ProcessControl {
         }
     }
 
+    /// Runs `brew services stop|restart` for a Homebrew service. Killing its
+    /// process directly doesn't work: launchd restarts it right away.
+    static func brewServices(_ command: String, _ service: String, completion: @escaping (Bool) -> Void) {
+        DispatchQueue.global().async {
+            var succeeded = false
+            if let brew = ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"].first(where: FileManager.default.isExecutableFile) {
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: brew)
+                process.arguments = ["services", command, service]
+                process.standardOutput = FileHandle.nullDevice
+                process.standardError = FileHandle.nullDevice
+                if (try? process.run()) != nil {
+                    process.waitUntilExit()
+                    succeeded = process.terminationStatus == 0
+                }
+            }
+            DispatchQueue.main.async { completion(succeeded) }
+        }
+    }
+
     /// Stops the server and relaunches the same command, in the same directory,
     /// with the same environment. Output goes to ~/Library/Logs/WhatThePort.
     static func restart(_ server: Server, completion: ((Bool) -> Void)? = nil) {

@@ -35,6 +35,7 @@ final class ScanEngine: @unchecked Sendable {
     private var histories: [String: [Sample]] = [:]
     private var lastActive: [String: Date] = [:]
     private var argsCache: [pid_t: (start: Date, args: ProcArgs?)] = [:]
+    private var launchdLabels: [pid_t: (start: Date, label: String?)] = [:]
 
     func scan(_ config: ScanConfig) -> [Server] {
         let now = Date()
@@ -95,6 +96,7 @@ final class ScanEngine: @unchecked Sendable {
             // title; e.g. the `sh -c "next dev -p 3000"` that npm spawns.
             let launcher = tree.map(\.0).first { Self.hasIntactArguments(args(for: $0)) } ?? root
 
+            let service = brewService(for: root)
             let key = "\(socket.port)-\(root.pid)"
             seenKeys.insert(key)
             let connections = sockets.inboundConnections[socket.port] ?? 0
@@ -129,7 +131,10 @@ final class ScanEngine: @unchecked Sendable {
                 connections: connections,
                 history: history,
                 lastActive: lastActive[key] ?? now,
-                isProtected: config.protected.contains(socket.command)
+                // Homebrew services are managed like databases: kept out of
+                // Clean up and alerts, and stopped only after confirmation.
+                isProtected: config.protected.contains(socket.command) || service != nil,
+                brewService: service
             ))
         }
 
@@ -137,6 +142,7 @@ final class ScanEngine: @unchecked Sendable {
         lastActive = lastActive.filter { seenKeys.contains($0.key) }
         previousCPU = previousCPU.filter { livePids.contains($0.key) }
         argsCache = argsCache.filter { processes[$0.key] != nil }
+        launchdLabels = launchdLabels.filter { processes[$0.key] != nil }
         return servers
     }
 
@@ -161,6 +167,61 @@ final class ScanEngine: @unchecked Sendable {
         if bundle.contains(".framework/") { return false }
         let isXcode = bundle.hasSuffix("/Xcode") || bundle.contains("/Xcode-")
         return !(isXcode && path[range.upperBound...].hasPrefix("Developer/"))
+    }
+
+    // MARK: - Homebrew services
+
+    /// The Homebrew service a launchd job runs as, from its label
+    /// (`sh.brew.postgresql@16`). Services like redis overwrite their
+    /// environment with a process title, so ask launchd rather than reading
+    /// `XPC_SERVICE_NAME`. Cached per process, so launchctl only runs when a
+    /// new launchd-started process begins listening.
+    private func brewService(for root: ProcSnapshot) -> String? {
+        guard root.ppid == 1 else { return nil }
+        if let cached = launchdLabels[root.pid], cached.start == root.startTime {
+            return cached.label.flatMap(Self.brewServiceName(forLabel:))
+        }
+        let label = Self.launchdLabels(fromList: Self.runLaunchctlList())[root.pid]
+        launchdLabels[root.pid] = (root.startTime, label)
+        return label.flatMap(Self.brewServiceName(forLabel:))
+    }
+
+    /// Homebrew labels services `sh.brew.<name>`; services started by older
+    /// versions keep `homebrew.mxcl.<name>` until they're restarted.
+    static func brewServiceName(forLabel label: String) -> String? {
+        for prefix in ["sh.brew.", "homebrew.mxcl."] where label.hasPrefix(prefix) && label.count > prefix.count {
+            return String(label.dropFirst(prefix.count))
+        }
+        return nil
+    }
+
+    /// Parses `launchctl list`: a header, then `PID<tab>Status<tab>Label` rows,
+    /// with `-` for jobs that aren't running.
+    static func launchdLabels(fromList output: String) -> [pid_t: String] {
+        var labels: [pid_t: String] = [:]
+        for line in output.split(separator: "\n") {
+            let columns = line.split(separator: "\t", maxSplits: 2)
+            guard columns.count == 3, let pid = pid_t(columns[0]) else { continue }
+            labels[pid] = String(columns[2])
+        }
+        return labels
+    }
+
+    private static func runLaunchctlList() -> String {
+        let process = Process()
+        let pipe = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+        process.arguments = ["list"]
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        do {
+            try process.run()
+        } catch {
+            return ""
+        }
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        return String(decoding: data, as: UTF8.self)
     }
 
     // MARK: - Process tree

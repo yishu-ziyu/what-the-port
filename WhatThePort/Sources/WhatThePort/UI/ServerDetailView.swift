@@ -18,6 +18,10 @@ struct ServerDetailView: View {
     @AppStorage("detail.processesExpanded") private var processesExpanded = false
     /// Shared between both charts so hovering one scrubs the other.
     @State private var hoverTime: Date?
+    /// Stopping a Homebrew service asks first and waits for `brew services`.
+    @State private var brewStop = BrewStop.idle
+
+    private enum BrewStop { case idle, confirming, stopping, failed }
 
     var body: some View {
         let status = monitor.status(of: server)
@@ -52,11 +56,15 @@ struct ServerDetailView: View {
                             Usage.record(.restart)
                             monitor.restart(server)
                         }
-                        .disabled(server.launch == nil || !server.cwdExists)
+                        .disabled(server.brewService == nil && (server.launch == nil || !server.cwdExists))
                         IconButton(systemName: "stop.fill", tint: Theme.softRed, background: Theme.red.opacity(0.14), help: L10n.format("Stop %d processes", server.processes.count)) {
-                            Usage.record(.stop)
-                            monitor.stop(server)
-                            back()
+                            if server.brewService != nil {
+                                brewStop = .confirming
+                            } else {
+                                Usage.record(.stop)
+                                monitor.stop(server)
+                                back()
+                            }
                         }
                     }
                 }
@@ -66,6 +74,9 @@ struct ServerDetailView: View {
     }
 
     private var restartHelp: String {
+        if let service = server.brewService {
+            return L10n.format("Restart with brew services restart %@", service)
+        }
         if let agent = server.agent {
             return L10n.format("Restart. It will run outside the %@ session.", agent.kind.rawValue)
         }
@@ -223,7 +234,39 @@ struct ServerDetailView: View {
 
     // MARK: - Footer
 
-    private var footer: some View {
+    @ViewBuilder private var footer: some View {
+        if let service = server.brewService, brewStop != .idle {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(brewStop == .failed
+                     ? L10n.format("brew services couldn’t stop %@. Try brew services stop %@ in Terminal.", service, service)
+                     : L10n.format("Stop %@ with brew services? It also won’t start at login until you start it again.", service))
+                    .font(Theme.body)
+                    .foregroundStyle(brewStop == .failed ? Theme.softRed : Theme.text2)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 8) {
+                    Button(L10n.text("Cancel")) { brewStop = .idle }
+                        .buttonStyle(PillButtonStyle())
+                        .keyboardShortcut(.cancelAction)
+                    Button {
+                        Usage.record(.stop)
+                        brewStop = .stopping
+                        monitor.stop(server) { succeeded in
+                            if succeeded { back() } else { brewStop = .failed }
+                        }
+                    } label: {
+                        Text(brewStop == .stopping ? L10n.text("Stopping…") : L10n.format("Stop %@", service)).frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(PillButtonStyle(kind: .destructive))
+                    .disabled(brewStop == .stopping)
+                }
+            }
+            .padding(12)
+        } else {
+            actions
+        }
+    }
+
+    private var actions: some View {
         HStack(spacing: 8) {
             Button {
                 Usage.record(.openBrowser)

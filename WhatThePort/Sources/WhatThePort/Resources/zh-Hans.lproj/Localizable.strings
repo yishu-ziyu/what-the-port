@@ -184,6 +184,7 @@
 "Report a bug" = "报告问题";
 "Reset to defaults" = "恢复默认设置";
 "Restart WhatThePort to apply the language change." = "重启 WhatThePort 后生效。";
+"Restart with brew services restart %@" = "通过 brew services restart %@ 重启";
 "Restart with the same command" = "使用原命令重启";
 "Restart. It will run outside the %@ session." = "重启后将在 %@ 会话之外运行。";
 "Resume in %@" = "在 %@ 中恢复";
@@ -224,11 +225,14 @@
 "Started" = "启动时间";
 "Stay ahead of leaks" = "及时发现内存泄漏";
 "Stop" = "停止";
+"Stop %@" = "停止 %@";
+"Stop %@ with brew services? It also won’t start at login until you start it again." = "用 brew services 停止 %@？在你再次启动它之前，登录时也不会自动启动。";
 "Stop %d %@ · free %@" = "停止 %d 个%@ · 释放 %@";
 "Stop %d processes" = "停止 %d 个进程";
 "Stop servers" = "停止服务器";
 "Stopped %@" = "已停止 %@";
 "Stopping" = "停止方式";
+"Stopping…" = "正在停止…";
 "Suggest a Feature…" = "建议功能…";
 "Suggest a feature" = "建议功能";
 "Suggest cleaning up idle servers after" = "空闲达到此时间后建议清理";
@@ -280,6 +284,7 @@
 "You can remove it in Settings." = "之后可在设置中移除。";
 "Your tools, at a glance." = "常用工具，一目了然";
 "You’re set" = "设置完成";
+"brew services couldn’t stop %@. Try brew services stop %@ in Terminal." = "brew services 未能停止 %@。可以在终端运行 brew services stop %@。";
 "freed by stopping %d" = "停止 %d 个服务器可释放";
 "idle %@" = "空闲 %@";
 "server" = "服务器";

@@ -53,6 +53,9 @@ struct Server: Identifiable {
     var history: [Sample]
     var lastActive: Date
     var isProtected: Bool
+    /// The Homebrew service it runs as (`postgresql@16`), stopped through
+    /// `brew services` because launchd would restart it.
+    var brewService: String?
 
     var id: Int { port }
     var url: URL { URL(string: "http://localhost:\(port)")! }

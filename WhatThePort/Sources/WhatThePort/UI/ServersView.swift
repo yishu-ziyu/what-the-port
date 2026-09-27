@@ -339,9 +339,12 @@ struct ServerRow: View {
                             Usage.record(.openBrowser)
                             NSWorkspace.shared.open(server.url)
                         }
-                        IconButton(systemName: "stop.fill", tint: Theme.text1.opacity(0.8), background: .clear, size: 22, help: L10n.text("Stop")) {
-                            Usage.record(.stop)
-                            monitor.stop(server)
+                        // Homebrew services are stopped from their details, after confirming.
+                        if server.brewService == nil {
+                            IconButton(systemName: "stop.fill", tint: Theme.text1.opacity(0.8), background: .clear, size: 22, help: L10n.text("Stop")) {
+                                Usage.record(.stop)
+                                monitor.stop(server)
+                            }
                         }
                     }
                 } else {

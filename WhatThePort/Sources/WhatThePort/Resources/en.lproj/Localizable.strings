@@ -184,6 +184,7 @@
 "Report a bug" = "Report a bug";
 "Reset to defaults" = "Reset to defaults";
 "Restart WhatThePort to apply the language change." = "Restart WhatThePort to apply the language change.";
+"Restart with brew services restart %@" = "Restart with brew services restart %@";
 "Restart with the same command" = "Restart with the same command";
 "Restart. It will run outside the %@ session." = "Restart. It will run outside the %@ session.";
 "Resume in %@" = "Resume in %@";
@@ -224,11 +225,14 @@
 "Started" = "Started";
 "Stay ahead of leaks" = "Stay ahead of leaks";
 "Stop" = "Stop";
+"Stop %@" = "Stop %@";
+"Stop %@ with brew services? It also won’t start at login until you start it again." = "Stop %@ with brew services? It also won’t start at login until you start it again.";
 "Stop %d %@ · free %@" = "Stop %d %@ · free %@";
 "Stop %d processes" = "Stop %d processes";
 "Stop servers" = "Stop servers";
 "Stopped %@" = "Stopped %@";
 "Stopping" = "Stopping";
+"Stopping…" = "Stopping…";
 "Suggest a Feature…" = "Suggest a Feature…";
 "Suggest a feature" = "Suggest a feature";
 "Suggest cleaning up idle servers after" = "Suggest cleaning up idle servers after";
@@ -280,6 +284,7 @@
 "You can remove it in Settings." = "You can remove it in Settings.";
 "Your tools, at a glance." = "Your tools, at a glance.";
 "You’re set" = "You’re set";
+"brew services couldn’t stop %@. Try brew services stop %@ in Terminal." = "brew services couldn’t stop %@. Try brew services stop %@ in Terminal.";
 "freed by stopping %d" = "freed by stopping %d";
 "idle %@" = "idle %@";
 "server" = "server";

@@ -45,4 +45,15 @@ struct ScanFilterTests {
         #expect(ScanEngine.isInsideApp("/Applications/Some.app/Contents/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python"))
         #expect(ScanEngine.isInsideApp("/Applications/Xcode.app/Contents/MacOS/Xcode"))
     }
+
+    @Test func homebrewServicesComeFromLaunchdLabels() {
+        let output = "PID\tStatus\tLabel\n2741\t0\thomebrew.mxcl.postgresql@16\n-\t0\thomebrew.mxcl.nginx\n2708\t0\thomebrew.mxcl.redis\n636\t0\tcom.apple.rapportd\n"
+        let labels = ScanEngine.launchdLabels(fromList: output)
+        #expect(labels == [2741: "homebrew.mxcl.postgresql@16", 2708: "homebrew.mxcl.redis", 636: "com.apple.rapportd"])
+        #expect(ScanEngine.brewServiceName(forLabel: "homebrew.mxcl.postgresql@16") == "postgresql@16")
+        #expect(ScanEngine.brewServiceName(forLabel: "sh.brew.nginx") == "nginx")
+        #expect(ScanEngine.brewServiceName(forLabel: "com.apple.rapportd") == nil)
+        #expect(ScanEngine.brewServiceName(forLabel: "homebrew.mxcl.") == nil)
+        #expect(ScanEngine.brewServiceName(forLabel: "sh.brew.") == nil)
+    }
 }

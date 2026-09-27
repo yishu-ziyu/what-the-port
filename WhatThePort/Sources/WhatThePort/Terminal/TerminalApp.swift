@@ -347,7 +347,7 @@ final class TerminalApp {
             })
         }
         items.append(ServerAction(label: server.agent.map { "Restart · runs outside \($0.kind.rawValue)" } ?? "Restart", key: "r",
-                                  isEnabled: server.launch != nil && server.cwdExists) { [unowned self] in restart(server) })
+                                  isEnabled: server.brewService != nil || (server.launch != nil && server.cwdExists)) { [unowned self] in restart(server) })
         let count = server.processes.count
         items.append(ServerAction(label: "Stop \(count) \(count == 1 ? "process" : "processes")", key: "s", isDestructive: true) { [unowned self] in
             confirmingStop = server.port
@@ -461,13 +461,17 @@ final class TerminalApp {
     }
 
     private func stop(_ server: Server) {
-        monitor.stop(server)
+        monitor.stop(server) { [weak self] succeeded in
+            if !succeeded, let service = server.brewService {
+                self?.show("brew services couldn’t stop \(service). Try brew services stop \(service)", isError: true)
+            }
+        }
         if page == .detail(server.port) { page = .servers }
         show("Stopping \(server.project.name) :\(server.port)")
     }
 
     private func restart(_ server: Server) {
-        guard server.launch != nil, server.cwdExists else {
+        guard server.brewService != nil || (server.launch != nil && server.cwdExists) else {
             show("Can’t restart :\(server.port): its command or folder is gone", isError: true)
             return
         }
@@ -1071,7 +1075,7 @@ final class TerminalApp {
             block.add(divider())
             let count = server.processes.count
             let question: Line = [Span("Stop \(server.project.name) ", palette.text1), Span(":\(port)", palette.port(monitor.colorIndex(for: port)).bold()),
-                                  Span(" and its \(count) \(count == 1 ? "process" : "processes")?", palette.text1)]
+                                  Span(server.brewService != nil ? " with brew services? It won’t start at login." : " and its \(count) \(count == 1 ? "process" : "processes")?", palette.text1)]
             let keys: Line = [Span("y", palette.softRed.bold()), Span(" Stop   ", palette.softRed), Span("n", palette.text1.bold()), Span(" Cancel", palette.text3)]
             block.add(padded(Line.split(question, keys, width: inner)))
             block.add([])
