@@ -43,6 +43,8 @@ final class ScanEngine: @unchecked Sendable {
 
         var children: [pid_t: [pid_t]] = [:]
         for process in processes.values { children[process.ppid, default: []].append(process.pid) }
+        var listeningPorts: [pid_t: Set<Int>] = [:]
+        for socket in sockets.listening { listeningPorts[socket.pid, default: []].insert(socket.port) }
 
         var servers: [Server] = []
         var seenKeys = Set<String>()
@@ -50,10 +52,10 @@ final class ScanEngine: @unchecked Sendable {
 
         for socket in sockets.listening {
             guard socket.port >= config.minPort, socket.port <= config.maxPort,
-                  config.allowlist.contains(socket.command),
+                  Self.isAllowed(socket.command, in: config.allowlist),
                   let listener = processes[socket.pid] else { continue }
 
-            let root = rootProcess(for: listener, in: processes)
+            let root = rootProcess(for: listener, port: socket.port, in: processes, listeningPorts: listeningPorts)
             let tree = descendants(of: root.pid, children: children, processes: processes)
             livePids.formUnion(tree.map { $0.0.pid })
 
@@ -81,7 +83,7 @@ final class ScanEngine: @unchecked Sendable {
             let rootArgs = args(for: root)
             let cwd = ProcessInspector.currentDirectory(listener.pid) ?? ProcessInspector.currentDirectory(root.pid)
             // Apps that embed a node or python backend aren't dev servers.
-            if cwd == "/" || [rootArgs?.executablePath, args(for: listener)?.executablePath].contains(where: { $0?.contains(".app/Contents/") == true }) {
+            if cwd == "/" || [rootArgs?.executablePath, args(for: listener)?.executablePath].contains(where: { $0.map(Self.isInsideApp) == true }) {
                 continue
             }
             let environment = inheritedEnvironment(from: listener, root: root, in: processes)
@@ -138,15 +140,42 @@ final class ScanEngine: @unchecked Sendable {
         return servers
     }
 
+    // MARK: - Filters
+
+    /// Interpreters can report their version in the process name
+    /// (`python3.13`), so a dotted version also matches the plain name.
+    static func isAllowed(_ command: String, in allowlist: Set<String>) -> Bool {
+        if allowlist.contains(command) { return true }
+        guard let range = command.range(of: #"[0-9]+(\.[0-9]+)+$"#, options: .regularExpression),
+              range.lowerBound > command.startIndex else { return false }
+        return allowlist.contains(String(command[..<range.lowerBound]))
+    }
+
+    /// Whether an executable belongs to a desktop app, whose embedded node or
+    /// python backends aren't dev servers. Python's framework builds (Homebrew,
+    /// python.org) run from a stub Python.app inside Python.framework, and
+    /// Xcode's developer tools include a python3; neither is an app backend.
+    static func isInsideApp(_ path: String) -> Bool {
+        guard let range = path.range(of: ".app/Contents/") else { return false }
+        let bundle = path[..<range.lowerBound]
+        if bundle.contains(".framework/") { return false }
+        let isXcode = bundle.hasSuffix("/Xcode") || bundle.contains("/Xcode-")
+        return !(isXcode && path[range.upperBound...].hasPrefix("Developer/"))
+    }
+
     // MARK: - Process tree
 
     /// Climbs from the listening process to the command the user actually ran,
     /// e.g. from `next-server` up to `npm run dev`. Stops at shells, terminals
     /// and coding agents so stopping a server never takes its launcher with it.
-    private func rootProcess(for listener: ProcSnapshot, in processes: [pid_t: ProcSnapshot]) -> ProcSnapshot {
+    /// Also stops at a parent serving another port: that's a separate server
+    /// (e.g. a dev tool that spawns previews), and stopping this one mustn't stop it.
+    func rootProcess(for listener: ProcSnapshot, port: Int, in processes: [pid_t: ProcSnapshot],
+                     listeningPorts: [pid_t: Set<Int>]) -> ProcSnapshot {
         var current = listener
         while true {
             guard current.ppid > 1, let parent = processes[current.ppid] else { break }
+            if let ports = listeningPorts[parent.pid], !ports.contains(port) { break }
             if Self.runners.contains(parent.comm), !isAgent(parent) {
                 current = parent
                 continue
