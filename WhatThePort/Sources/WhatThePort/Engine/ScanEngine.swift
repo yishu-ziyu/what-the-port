@@ -49,6 +49,8 @@ final class ScanEngine: @unchecked Sendable {
 
         var servers: [Server] = []
         var seenKeys = Set<String>()
+        // Read from launchctl at most once per scan, and only for new launchd jobs.
+        var launchdList: [pid_t: String]?
         var livePids = Set<pid_t>()
 
         for socket in sockets.listening {
@@ -96,7 +98,7 @@ final class ScanEngine: @unchecked Sendable {
             // title; e.g. the `sh -c "next dev -p 3000"` that npm spawns.
             let launcher = tree.map(\.0).first { Self.hasIntactArguments(args(for: $0)) } ?? root
 
-            let service = brewService(for: root)
+            let service = brewService(for: root, labels: &launchdList)
             let key = "\(socket.port)-\(root.pid)"
             seenKeys.insert(key)
             let connections = sockets.inboundConnections[socket.port] ?? 0
@@ -175,13 +177,14 @@ final class ScanEngine: @unchecked Sendable {
     /// (`sh.brew.postgresql@16`). Services like redis overwrite their
     /// environment with a process title, so ask launchd rather than reading
     /// `XPC_SERVICE_NAME`. Cached per process, so launchctl only runs when a
-    /// new launchd-started process begins listening.
-    private func brewService(for root: ProcSnapshot) -> String? {
+    /// new launchd-started process begins listening, and once for all of them.
+    private func brewService(for root: ProcSnapshot, labels: inout [pid_t: String]?) -> String? {
         guard root.ppid == 1 else { return nil }
         if let cached = launchdLabels[root.pid], cached.start == root.startTime {
             return cached.label.flatMap(Self.brewServiceName(forLabel:))
         }
-        let label = Self.launchdLabels(fromList: Self.runLaunchctlList())[root.pid]
+        if labels == nil { labels = Self.launchdLabels(fromList: Self.runLaunchctlList()) }
+        let label = labels?[root.pid]
         launchdLabels[root.pid] = (root.startTime, label)
         return label.flatMap(Self.brewServiceName(forLabel:))
     }
