@@ -32,6 +32,7 @@ struct AgentSession: Equatable {
 final class AgentSessionResolver {
     private let home = FileManager.default.homeDirectoryForCurrentUser
     private var claudeCache: [String: (session: AgentSession, checkedAt: Date)] = [:]
+    private var claudeTranscripts: [String: ClaudeTranscript] = [:]
     private var codexIndex: [String: AgentSession] = [:]
     private var codexIndexedAt: Date = .distantPast
 
@@ -58,19 +59,13 @@ final class AgentSessionResolver {
         if let cached = claudeCache[id], Date().timeIntervalSince(cached.checkedAt) < 30 {
             return cached.session
         }
-        let transcript = findClaudeTranscript(id: id)
-        var title: String?
-        var directory: String?
-        if let transcript {
-            // Titles are appended as the session goes, so the newest is near the end.
-            let head = Self.readHead(of: transcript, bytes: 256 * 1024)
-            title = Self.lastTitle(in: Self.readTail(of: transcript, bytes: 512 * 1024))
-                ?? Self.lastTitle(in: head)
-                ?? Self.firstPrompt(in: head)
-            directory = Self.firstValue(of: "cwd", in: head)
+        if claudeTranscripts[id] == nil, let transcript = findClaudeTranscript(id: id) {
+            claudeTranscripts[id] = ClaudeTranscript(url: transcript)
         }
-        let created = transcript.flatMap { try? $0.resourceValues(forKeys: [.creationDateKey]).creationDate }
-        let session = AgentSession(kind: .claudeCode, id: id, title: title, transcript: transcript, startedAt: created, directory: directory)
+        claudeTranscripts[id]?.update()
+        let transcript = claudeTranscripts[id]
+        let session = AgentSession(kind: .claudeCode, id: id, title: transcript?.title, transcript: transcript?.url,
+                                   startedAt: transcript?.created, directory: transcript?.directory)
         claudeCache[id] = (session, Date())
         return session
     }
@@ -85,17 +80,7 @@ final class AgentSessionResolver {
         return nil
     }
 
-    private static func lastTitle(in text: String) -> String? {
-        var title: String?
-        for line in text.split(separator: "\n") where line.contains("\"type\":\"custom-title\"") || line.contains("\"type\":\"ai-title\"") {
-            guard let object = json(line) else { continue }
-            if let custom = object["customTitle"] as? String, !custom.isEmpty { return custom }
-            if let ai = object["aiTitle"] as? String, !ai.isEmpty { title = ai }
-        }
-        return title
-    }
-
-    private static func firstPrompt(in text: String) -> String? {
+    fileprivate static func firstPrompt(in text: String) -> String? {
         for line in text.split(separator: "\n") where line.contains("\"type\":\"user\"") {
             guard let object = json(line),
                   let message = object["message"] as? [String: Any],
@@ -108,7 +93,7 @@ final class AgentSessionResolver {
         return nil
     }
 
-    private static func firstValue(of key: String, in text: String) -> String? {
+    fileprivate static func firstValue(of key: String, in text: String) -> String? {
         for line in text.split(separator: "\n") where line.contains("\"\(key)\"") {
             if let value = json(line)?[key] as? String { return value }
         }
@@ -159,12 +144,12 @@ final class AgentSessionResolver {
         return formatter
     }()
 
-    private static func json<S: StringProtocol>(_ line: S) -> [String: Any]? {
+    fileprivate static func json<S: StringProtocol>(_ line: S) -> [String: Any]? {
         guard let data = line.data(using: .utf8) else { return nil }
         return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
     }
 
-    private static func readHead(of url: URL, bytes: Int) -> String {
+    fileprivate static func readHead(of url: URL, bytes: Int) -> String {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return "" }
         defer { try? handle.close() }
         let data = (try? handle.read(upToCount: bytes)) ?? Data()
@@ -182,5 +167,66 @@ final class AgentSessionResolver {
         // Drop the partial first line when we started mid-file.
         if offset > 0, let newline = text.firstIndex(of: "\n") { text = String(text[text.index(after: newline)...]) }
         return text
+    }
+}
+
+/// Titles and details from a Claude Code transcript. Transcripts only grow, and
+/// titles are appended as a session goes, so after the first read only the
+/// newly appended lines are read.
+struct ClaudeTranscript {
+    let url: URL
+    private(set) var directory: String?
+    private(set) var created: Date?
+    private var firstPrompt: String?
+    private var customTitle: String?
+    private var aiTitle: String?
+    /// Bytes read so far, always ending after a complete line.
+    private var offset: UInt64 = 0
+
+    static let headBytes = 256 * 1024
+    static let tailBytes = 512 * 1024
+
+    init(url: URL) {
+        self.url = url
+    }
+
+    /// The newest title the user set, else the newest generated one, else the first prompt.
+    var title: String? { customTitle ?? aiTitle ?? firstPrompt }
+
+    mutating func update() {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return }
+        defer { try? handle.close() }
+        let size = (try? handle.seekToEnd()) ?? 0
+        if size < offset { self = ClaudeTranscript(url: url) }
+        if offset == 0 {
+            let head = AgentSessionResolver.readHead(of: url, bytes: Self.headBytes)
+            firstPrompt = AgentSessionResolver.firstPrompt(in: head)
+            directory = AgentSessionResolver.firstValue(of: "cwd", in: head)
+            created = try? url.resourceValues(forKeys: [.creationDateKey]).creationDate
+            // Titles set early in a long session may sit in the head, before the tail window.
+            if size > UInt64(Self.tailBytes) { readTitles(in: Data(head.utf8), from: 0) }
+        }
+        guard size > offset else { return }
+        let start = max(offset, size > UInt64(Self.tailBytes) ? size - UInt64(Self.tailBytes) : 0)
+        try? handle.seek(toOffset: start)
+        guard let data = try? handle.readToEnd() else { return }
+        readTitles(in: data, from: start)
+    }
+
+    /// Reads titles from complete lines and moves `offset` past the last one, so
+    /// a line still being written is read whole next time.
+    private mutating func readTitles(in data: Data, from start: UInt64) {
+        guard let lastNewline = data.lastIndex(of: UInt8(ascii: "\n")) else { return }
+        var lines = data[data.startIndex..<lastNewline].split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: true)
+        // Starting past `offset` means starting mid-line; drop that partial line.
+        if start > offset, !lines.isEmpty { lines.removeFirst() }
+        for line in lines {
+            let text = String(decoding: line, as: UTF8.self)
+            guard text.contains("\"type\":\"custom-title\"") || text.contains("\"type\":\"ai-title\""),
+                  let object = AgentSessionResolver.json(text) else { continue }
+            if let custom = object["customTitle"] as? String, !custom.isEmpty { customTitle = custom }
+            if let ai = object["aiTitle"] as? String, !ai.isEmpty { aiTitle = ai }
+        }
+        offset = max(offset, start + UInt64(lastNewline - data.startIndex + 1))
     }
 }
