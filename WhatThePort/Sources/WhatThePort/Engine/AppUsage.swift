@@ -15,7 +15,12 @@ struct AppMemory: Identifiable, Equatable {
 /// current user's processes are readable, so system daemons end up in the
 /// "everything else" remainder. Use from one serial queue.
 final class AppUsageScanner: @unchecked Sendable {
+    private typealias Owner = (key: String, name: String, bundle: String?, agent: AgentKind?)
+
     private var bundleNames: [String: String] = [:]
+    /// A process keeps its owner for life, so only its memory is read on later
+    /// scans; working out owners reads paths and bundles from disk.
+    private var owners: [pid_t: (start: Date, owner: Owner)] = [:]
 
     func scan(excluding excluded: Set<pid_t>) -> [AppMemory] {
         let processes = ProcessInspector.allProcesses()
@@ -30,9 +35,16 @@ final class AppUsageScanner: @unchecked Sendable {
         var totals: [String: (name: String, bundle: String?, agent: AgentKind?, memory: UInt64)] = [:]
         for process in processes.values where !excluded.contains(process.pid) {
             guard let usage = ProcessInspector.usage(process.pid), usage.footprint > 0 else { continue }
-            let owner = owner(of: process, processes: processes, path: path)
+            let owner: Owner
+            if let cached = owners[process.pid], cached.start == process.startTime {
+                owner = cached.owner
+            } else {
+                owner = self.owner(of: process, processes: processes, path: path)
+                owners[process.pid] = (process.startTime, owner)
+            }
             totals[owner.key, default: (owner.name, owner.bundle, owner.agent, 0)].memory += usage.footprint
         }
+        owners = owners.filter { processes[$0.key] != nil }
         return totals
             .map { AppMemory(id: $0.key, name: $0.value.name, bundlePath: $0.value.bundle, agent: $0.value.agent, memory: $0.value.memory) }
             .sorted { $0.memory > $1.memory }
@@ -41,7 +53,7 @@ final class AppUsageScanner: @unchecked Sendable {
     /// Who a process's memory belongs to: its own app bundle, a coding agent,
     /// the nearest app that launched it, or failing that its process name.
     private func owner(of process: ProcSnapshot, processes: [pid_t: ProcSnapshot],
-                       path: (pid_t) -> String?) -> (key: String, name: String, bundle: String?, agent: AgentKind?) {
+                       path: (pid_t) -> String?) -> Owner {
         // XPC helpers (WebKit content, app services) are children of launchd;
         // macOS records the app they work for as their "responsible" process.
         if let own = path(process.pid), let agent = Self.agent(forExecutable: own, comm: process.comm) {
