@@ -25,6 +25,13 @@ final class ServerMonitor: ObservableObject {
     /// Off in the `wtp` terminal UI, so it never duplicates the menu bar app's
     /// notifications or automatic clean up.
     var handlesAlerts = true
+    /// Other apps' memory only shows in the popover, and reading it walks every
+    /// process, so the menu bar app turns this off while the popover is closed.
+    /// It's then read at most every 30 seconds.
+    var showsOtherApps = true {
+        didSet { if showsOtherApps, !oldValue { scan() } }
+    }
+    private var otherAppsScannedAt = Date.distantPast
 
     var minPort: Int = 3000
     var maxPort: Int = 65535
@@ -119,16 +126,20 @@ final class ServerMonitor: ObservableObject {
         guard !isScanning else { return }
         isScanning = true
         let config = scanConfig
+        let readsApps = showsOtherApps || Date().timeIntervalSince(otherAppsScannedAt) > 30
         queue.async { [engine, appUsage, cpuSampler] in
             let result = engine.scan(config)
             let system = ProcessInspector.systemMemory()
             let cpu = cpuSampler.sample()
-            let apps = appUsage.scan(excluding: Set(result.flatMap { $0.processStarts.keys }))
+            let apps = readsApps ? appUsage.scan(excluding: Set(result.flatMap { $0.processStarts.keys })) : nil
             Task { @MainActor in
                 self.servers = result
                 self.systemMemory = system
                 if let cpu { self.systemCPU = cpu }
-                self.otherApps = apps
+                if let apps {
+                    self.otherApps = apps
+                    self.otherAppsScannedAt = Date()
+                }
                 self.hasScanned = true
                 self.isScanning = false
                 if self.handlesAlerts {

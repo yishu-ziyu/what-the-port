@@ -19,6 +19,8 @@ struct WhatThePortApp: App {
         // Initialize AppKit for snapshot mode without overriding its appearance.
         _ = NSApplication.shared
         let monitor = ServerMonitor()
+        // The popover turns this on while it's open.
+        monitor.showsOtherApps = false
         _monitor = StateObject(wrappedValue: monitor)
         if let index = CommandLine.arguments.firstIndex(of: "--snapshot-onboarding") {
             let directory = CommandLine.arguments.dropFirst(index + 1).first ?? FileManager.default.currentDirectoryPath

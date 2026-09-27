@@ -36,10 +36,12 @@ struct PopoverRoot: View {
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
         .background(PopoverWindowFitter(height: contentHeight))
         .onAppear {
+            monitor.showsOtherApps = true
             monitor.start()
             Usage.record(.popover)
             consumePendingRoute()
         }
+        .onDisappear { monitor.showsOtherApps = false }
         .onChange(of: monitor.pendingRoute) { _, _ in consumePendingRoute() }
     }
 
