@@ -20,7 +20,7 @@ enum SnapshotRenderer {
         let output = URL(fileURLWithPath: directory, isDirectory: true)
         try? FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
 
-        var pages: [(String, PopoverRoute, Bool)] = [("servers", .servers, false), ("cleanup", .servers, true)]
+        var pages: [(String, PopoverRoute, Bool)] = [("servers", .servers, false), ("cleanup", .servers, true), ("apps", .apps, false)]
         if let first = monitor.servers.first(where: { $0.agent != nil }) ?? monitor.servers.first {
             pages.insert(("detail", .detail(port: first.port), false), at: 1)
         }
@@ -71,11 +71,13 @@ enum SnapshotRenderer {
     @ViewBuilder private static func snapshotPage(monitor: ServerMonitor, route: PopoverRoute, cleaning: Bool) -> some View {
         switch route {
         case .servers:
-            ServersView(monitor: monitor, startCleaning: cleaning, openServer: { _ in }, openSettings: {})
+            ServersView(monitor: monitor, startCleaning: cleaning, openServer: { _ in }, openApps: {}, openSettings: {})
         case .detail(let port):
             if let server = monitor.server(port: port) {
                 ServerDetailView(server: server, monitor: monitor, back: {})
             }
+        case .apps:
+            AppsView(monitor: monitor, back: {})
         }
     }
 

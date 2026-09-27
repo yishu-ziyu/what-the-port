@@ -3,6 +3,7 @@ import SwiftUI
 enum PopoverRoute: Equatable {
     case servers
     case detail(port: Int)
+    case apps
 }
 
 struct PopoverRoot: View {
@@ -20,6 +21,7 @@ struct PopoverRoot: View {
                 ServersView(monitor: monitor,
                             startCleaning: startCleaning,
                             openServer: { server in navigate(to: .detail(port: server.port)) },
+                            openApps: { navigate(to: .apps) },
                             openSettings: openSettings)
                     .transition(.move(edge: .leading).combined(with: .opacity))
             case .detail(let port):
@@ -30,6 +32,9 @@ struct PopoverRoot: View {
                     // The server went away while we were looking at it.
                     Color.clear.frame(height: 1).onAppear { navigate(to: .servers) }
                 }
+            case .apps:
+                AppsView(monitor: monitor, back: { navigate(to: .servers) })
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
         .frame(width: Theme.popoverWidth)

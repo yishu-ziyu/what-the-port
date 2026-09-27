@@ -9,6 +9,8 @@ struct AppMemory: Identifiable, Equatable {
     /// Set for coding agents, which have no app bundle of their own.
     let agent: AgentKind?
     let memory: UInt64
+    /// The app's own process plus its helpers.
+    let processCount: Int
 }
 
 /// Adds up memory by app for everything that isn't a dev server. Only the
@@ -32,7 +34,7 @@ final class AppUsageScanner: @unchecked Sendable {
             return value
         }
 
-        var totals: [String: (name: String, bundle: String?, agent: AgentKind?, memory: UInt64)] = [:]
+        var totals: [String: (name: String, bundle: String?, agent: AgentKind?, memory: UInt64, processes: Int)] = [:]
         for process in processes.values where !excluded.contains(process.pid) {
             guard let usage = ProcessInspector.usage(process.pid), usage.footprint > 0 else { continue }
             let owner: Owner
@@ -42,11 +44,13 @@ final class AppUsageScanner: @unchecked Sendable {
                 owner = self.owner(of: process, processes: processes, path: path)
                 owners[process.pid] = (process.startTime, owner)
             }
-            totals[owner.key, default: (owner.name, owner.bundle, owner.agent, 0)].memory += usage.footprint
+            totals[owner.key, default: (owner.name, owner.bundle, owner.agent, 0, 0)].memory += usage.footprint
+            totals[owner.key]?.processes += 1
         }
         owners = owners.filter { processes[$0.key] != nil }
         return totals
-            .map { AppMemory(id: $0.key, name: $0.value.name, bundlePath: $0.value.bundle, agent: $0.value.agent, memory: $0.value.memory) }
+            .map { AppMemory(id: $0.key, name: $0.value.name, bundlePath: $0.value.bundle, agent: $0.value.agent,
+                             memory: $0.value.memory, processCount: $0.value.processes) }
             .sorted { $0.memory > $1.memory }
     }
 

@@ -11,11 +11,14 @@
 "%@ session" = "%@ 会话";
 "%d %@" = "%d 个%@";
 "%d %@ detected" = "已检测到 %d 个%@";
+"%d apps" = "%d 个应用";
 "%d days" = "%d 天";
 "%d hours" = "%d 小时";
 "%d more" = "另外 %d 项";
 "%d of 2 ready" = "%d / 2 项已就绪";
 "%d of 4 found" = "已找到 %d / 4 项";
+"%d other apps" = "其他 %d 个应用";
+"%d processes" = "%d 个进程";
 "%d seconds" = "%d 秒";
 "%dd" = "%d 天";
 "%dh" = "%d 小时";
@@ -54,6 +57,7 @@
 "Allow…" = "允许…";
 "App" = "应用";
 "Approve in System Settings" = "请在系统设置中批准";
+"Apps" = "应用";
 "Ask" = "询问";
 "Ask lists them under Clean up. Automatic stops them for you." = "“询问”会将服务器列在“清理”中；“自动”会直接停止服务器。";
 "Automatic" = "自动";
@@ -128,6 +132,7 @@
 "Link servers to the session that started them" = "关联启动服务器的会话";
 "MERGED" = "已合并";
 "Made by Tomjohn" = "作者 Tomjohn";
+"Measured like Activity Monitor’s Memory column, including compressed memory, so the total can be larger than Other apps." = "与活动监视器的“内存”列口径一致，包含压缩内存，所以合计可能大于上一页的“其他应用”。";
 "Memory" = "内存";
 "Memory and leak alerts" = "内存及泄漏提醒";
 "Menu bar icon" = "菜单栏图标";
@@ -200,6 +205,7 @@
 "See and stop your servers from any terminal. Click to add the wtp command." = "在任意终端查看和停止服务器，点击添加 wtp 命令。";
 "See exactly what’s sent. You can change this in Settings." = "查看具体发送内容，之后可在设置中修改。";
 "See the preview deployment for whatever branch each server is running. Optional." = "查看服务器当前分支的预览部署，此功能可选。";
+"See which apps use memory" = "查看哪些应用在占用内存";
 "Send Feedback" = "发送反馈";
 "Send a notification" = "发送通知";
 "Sends SIGTERM to the whole process tree first" = "先向整个进程树发送 SIGTERM";

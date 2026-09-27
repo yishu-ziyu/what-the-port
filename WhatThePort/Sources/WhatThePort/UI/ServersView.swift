@@ -3,6 +3,7 @@ import SwiftUI
 struct ServersView: View {
     @ObservedObject var monitor: ServerMonitor
     let openServer: (Server) -> Void
+    let openApps: () -> Void
     let openSettings: () -> Void
 
     private let maxVisibleRows = 7
@@ -16,9 +17,11 @@ struct ServersView: View {
     @State private var isCleaning: Bool
     @State private var selection: Set<Int> = []
 
-    init(monitor: ServerMonitor, startCleaning: Bool = false, openServer: @escaping (Server) -> Void, openSettings: @escaping () -> Void) {
+    init(monitor: ServerMonitor, startCleaning: Bool = false, openServer: @escaping (Server) -> Void,
+         openApps: @escaping () -> Void, openSettings: @escaping () -> Void) {
         self.monitor = monitor
         self.openServer = openServer
+        self.openApps = openApps
         self.openSettings = openSettings
         _isCleaning = State(initialValue: startCleaning)
         _selection = State(initialValue: startCleaning ? Self.suggestedSelection(monitor) : [])
@@ -65,11 +68,11 @@ struct ServersView: View {
                 summaryDetail
             }
             MemoryShareBar(servers: visibleServers, monitor: monitor, focus: $focus, highlightedPort: hoveredRow,
-                           selection: isCleaning ? selection : nil) { server in
+                           selection: isCleaning ? selection : nil, openApps: isCleaning ? nil : openApps) { server in
                 if isCleaning { toggle(server.port) } else { openServer(server) }
             }
             .frame(height: 16)
-            MemoryLegend(monitor: monitor)
+            MemoryLegend(monitor: monitor, openApps: isCleaning ? nil : openApps)
         }
         .padding(EdgeInsets(top: 12, leading: Theme.inset, bottom: 16, trailing: Theme.inset))
     }
@@ -481,6 +484,8 @@ struct MemoryShareBar: View {
     var highlightedPort: Int?
     /// In Clean up mode, selected servers stay bright and the rest dim.
     var selection: Set<Int>?
+    /// Clicking another app's segment opens the apps page.
+    var openApps: (() -> Void)?
     let activate: (Server) -> Void
 
     private let spacing: CGFloat = 2
@@ -548,6 +553,10 @@ struct MemoryShareBar: View {
             .frame(width: max(width, 1), height: height)
             .contentShape(Rectangle())
             .onHover { hovering in setFocus(target, hovering) }
+            .onTapGesture {
+                focus = nil
+                openApps?()
+            }
             .help(help)
     }
 
@@ -589,12 +598,29 @@ struct MemoryBreakdown {
 /// Servers · Other apps · Free of the Mac's total.
 struct MemoryLegend: View {
     @ObservedObject var monitor: ServerMonitor
+    /// Makes "Other apps" a link to the apps page.
+    var openApps: (() -> Void)?
+    @State private var isHoveringApps = false
 
     var body: some View {
         let breakdown = MemoryBreakdown(monitor: monitor)
         HStack(spacing: 10) {
             item(swatch: Theme.text1.opacity(0.95), label: L10n.text("Servers"), value: amount(breakdown.devServers))
-            item(swatch: Theme.text1.opacity(0.12), label: L10n.text("Other apps"), value: amount(breakdown.otherApps))
+            if let openApps {
+                Button(action: openApps) {
+                    item(swatch: Theme.text1.opacity(0.12), label: L10n.text("Other apps"), value: amount(breakdown.otherApps),
+                         underlined: isHoveringApps)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .onHover { hovering in
+                    isHoveringApps = hovering
+                    if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                }
+                .help(L10n.text("See which apps use memory"))
+            } else {
+                item(swatch: Theme.text1.opacity(0.12), label: L10n.text("Other apps"), value: amount(breakdown.otherApps))
+            }
             if let total = breakdown.total {
                 item(swatch: Theme.memoryTrack, label: L10n.text("Free"), value: L10n.format("%@ of %@", Format.total(breakdown.free).number, amount(total)))
             }
@@ -607,10 +633,10 @@ struct MemoryLegend: View {
         return "\(value.number) \(value.unit)"
     }
 
-    private func item(swatch: Color, label: String, value: String) -> some View {
+    private func item(swatch: Color, label: String, value: String, underlined: Bool = false) -> some View {
         HStack(spacing: 5) {
             RoundedRectangle(cornerRadius: 1.5).fill(swatch).frame(width: 8, height: label == L10n.text("Servers") ? 8 : 4)
-            Text(label).font(Theme.caption).foregroundStyle(Theme.text2)
+            Text(label).font(Theme.caption).foregroundStyle(underlined ? Theme.text1 : Theme.text2).underline(underlined)
             Text(value).font(Theme.monoCaption).foregroundStyle(Theme.text3)
         }
         .fixedSize()
