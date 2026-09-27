@@ -99,6 +99,12 @@ final class ScanEngine: @unchecked Sendable {
             let launcher = tree.map(\.0).first { Self.hasIntactArguments(args(for: $0)) } ?? root
 
             let service = brewService(for: root, labels: &launchdList)
+            // A service's data folder can sit inside Homebrew's own git checkout,
+            // whose branch says nothing about the service. Name it after the service.
+            if let service {
+                project.branch = nil
+                project.name = service
+            }
             let key = "\(socket.port)-\(root.pid)"
             seenKeys.insert(key)
             let connections = sockets.inboundConnections[socket.port] ?? 0
