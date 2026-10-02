@@ -43,6 +43,17 @@ enum SnapshotRenderer {
                          to: output.appendingPathComponent("settings-\(pane.id.lowercased().replacingOccurrences(of: " & ", with: "-").replacingOccurrences(of: " ", with: "-")).png"))
         }
 
+        // UI examples only: these captions do not come from live recognition.
+        let captionExample = CaptionSegment(
+            original: "Today we compare Claude Sonnet and GPT 6.1 on four real-world tests.",
+            translated: "我们用四项真实场景测试，比较 Claude Sonnet 和 GPT 6.1。")
+        renderWindow(LiveCaptionsView(captions: LiveCaptions(snapshotSegments: [captionExample])),
+                     size: CGSize(width: 640, height: 173), to: output.appendingPathComponent("captions.png"), styleMask: [.borderless], fitHeight: true)
+        renderWindow(LiveCaptionsView(captions: LiveCaptions(snapshotSegments: [captionExample]), previewTransparent: true, previewControls: true),
+                     size: CGSize(width: 640, height: 173), to: output.appendingPathComponent("captions-transparent.png"), styleMask: [.borderless], fitHeight: true)
+        renderWindow(LiveCaptionsView(captions: LiveCaptions()), size: CGSize(width: 420, height: 210),
+                     to: output.appendingPathComponent("captions-empty.png"), styleMask: [.borderless], fitHeight: true)
+
         for step in OnboardingStep.allCases {
             renderWindow(OnboardingView(monitor: monitor, step: step), size: CGSize(width: 480, height: 620),
                          to: output.appendingPathComponent("onboarding-\(step.rawValue + 1).png"))
@@ -140,15 +151,27 @@ enum SnapshotRenderer {
 
     /// AppKit-backed controls (toggles, pickers, forms) don't draw in
     /// ImageRenderer, so render them in a real off-screen window instead.
-    static func renderWindow<V: View>(_ view: V, size: CGSize, to url: URL) {
+    static func renderWindow<V: View>(_ view: V, size: CGSize, to url: URL,
+                                      styleMask: NSWindow.StyleMask = [.titled, .fullSizeContentView], fitHeight: Bool = false) {
         let host = NSHostingView(rootView: view)
-        let window = NSWindow(contentRect: CGRect(origin: .zero, size: size), styleMask: [.titled, .fullSizeContentView], backing: .buffered, defer: false)
+        let window = NSWindow(contentRect: CGRect(origin: .zero, size: size), styleMask: styleMask, backing: .buffered, defer: false)
         window.appearance = NSApp.effectiveAppearance
+        if !styleMask.contains(.titled) {
+            window.backgroundColor = .clear
+            window.isOpaque = false
+            window.hasShadow = false
+        }
         window.contentView = host
         window.setFrameOrigin(CGPoint(x: -10_000, y: -10_000))
         window.orderFrontRegardless()
         RunLoop.current.run(until: Date().addingTimeInterval(0.5))
         host.layoutSubtreeIfNeeded()
+        if fitHeight {
+            var frame = window.frame
+            frame.size.height = host.fittingSize.height
+            window.setFrame(frame, display: true)
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
         defer { window.orderOut(nil) }
         // Capturing your own window doesn't need Screen Recording permission.
         // CGWindowListCreateImage is hidden from the Swift SDK, so look it up.

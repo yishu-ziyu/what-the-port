@@ -302,3 +302,73 @@
 "wtp command" = "wtp command";
 "wtp points to a copy of WhatThePort that’s no longer there" = "wtp points to a copy of WhatThePort that’s no longer there";
 "That's over your %@ GB alert. %@" = "That's over your %@ GB alert. %@";
+
+// Live captions
+"Live captions" = "Live captions";
+"Live captions…" = "Live captions…";
+"Computer audio captions" = "Computer audio captions";
+"Chinese or English; recognized on this Mac" = "Chinese or English; recognized on this Mac";
+"Open captions" = "Open captions";
+"Speech language" = "Speech language";
+"Start captions" = "Start captions";
+"Stop captions" = "Stop captions";
+"Play a video or audio on your Mac after starting captions." = "Play a video or audio on your Mac after starting captions.";
+"Computer audio · On-device · No recording saved" = "Computer audio · On-device · No recording saved";
+"Captions stopped" = "Captions stopped";
+"Preparing captions…" = "Preparing captions…";
+"Receiving computer audio" = "Receiving computer audio";
+"Listening for computer audio…" = "Listening for computer audio…";
+"Stopping captions…" = "Stopping captions…";
+"Couldn’t start captions" = "Couldn’t start captions";
+"System Settings…" = "System Settings…";
+"Allow Speech Recognition in System Settings, then try again." = "Allow Speech Recognition in System Settings, then try again.";
+"Allow Screen & System Audio Recording in System Settings, then restart WhatThePort." = "Allow Screen & System Audio Recording in System Settings, then restart WhatThePort.";
+"On-device recognition is unavailable for this language. Enable Dictation for it in System Settings, then try again." = "On-device recognition is unavailable for this language. Enable Dictation for it in System Settings, then try again.";
+"No display is available for capturing computer audio." = "No display is available for capturing computer audio.";
+"English original" = "English original";
+"Original captions" = "Original captions";
+"Chinese translation" = "Chinese translation";
+"Waiting for translation…" = "Waiting for translation…";
+"Chinese translation requires macOS 15 or later." = "Chinese translation requires macOS 15 or later.";
+"Translation unavailable. Stop and start captions to retry." = "Translation unavailable. Stop and start captions to retry.";
+
+// Model-powered live captions
+"Recognition" = "Recognition";
+"Play a video or audio after starting captions. Text appears after each short audio segment." = "Play a video or audio after starting captions. Text appears after each short audio segment.";
+"Translating this segment…" = "Translating this segment…";
+"Translation stopped" = "Translation stopped";
+"No microphone · Closing stops capture" = "No microphone · Closing stops capture";
+"Audio → StepAudio 2.5 ASR · English text → Step 3.7 Flash · Uses Step Plan" = "Audio → StepAudio 2.5 ASR · English text → Step 3.7 Flash · Uses Step Plan";
+"Audio stays on this Mac · English text → Step 3.7 Flash · Uses Step Plan" = "Audio stays on this Mac · English text → Step 3.7 Flash · Uses Step Plan";
+"Audio stays on this Mac · SenseVoice-Small · Temporary audio deleted after recognition" = "Audio stays on this Mac · SenseVoice-Small · Temporary audio deleted after recognition";
+"Recognizing audio segment…" = "Recognizing audio segment…";
+"Recognition is falling behind. Stop and restart captions; no audio was silently skipped." = "Recognition is falling behind. Stop and restart captions; no audio was silently skipped.";
+"Configure STEPFUN_API_KEY in ~/.config/ai-providers/env.local." = "Configure STEPFUN_API_KEY in ~/.config/ai-providers/env.local.";
+"SenseVoice-Small is not installed at the configured local path." = "SenseVoice-Small is not installed at the configured local path.";
+"The local ASR process failed." = "The local ASR process failed.";
+"Invalid model response." = "Invalid model response.";
+"ASR returned an error. No other provider was used." = "ASR returned an error. No other provider was used.";
+"The translation model returned no text." = "The translation model returned no text.";
+"Local ASR or Step Plan; English-to-Chinese translation" = "Local ASR or Step Plan; English-to-Chinese translation";
+
+// Compact caption panel
+"Caption settings" = "Caption settings";
+"Close and stop captions" = "Close and stop captions";
+"Ready when you are" = "Ready when you are";
+"Waiting for speech…" = "Waiting for speech…";
+"Play computer audio to see captions here." = "Play computer audio to see captions here.";
+"Review" = "Review";
+"Recent captions" = "Recent captions";
+"Translation not available" = "Translation not available";
+"Show original text" = "Show original text";
+"Stop captions before changing the model or language." = "Stop captions before changing the model or language.";
+"Local ASR · Cloud translation" = "Local ASR · Cloud translation";
+"Local · Chinese" = "Local · Chinese";
+"Cloud · English → Chinese" = "Cloud · English → Chinese";
+"Cloud · Chinese" = "Cloud · Chinese";
+"Audio → StepAudio 2.5 ASR · Uses Step Plan · No translation" = "Audio → StepAudio 2.5 ASR · Uses Step Plan · No translation";
+"Start" = "Start";
+
+"Viewing mode" = "Viewing mode";
+"Solid panel" = "Solid panel";
+"Transparent subtitles" = "Transparent subtitles";

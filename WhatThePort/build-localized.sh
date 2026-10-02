@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 export WTP_VERSION="${WTP_VERSION:-2.5.1}"
-export WTP_BUILD="${WTP_BUILD:-10}"
+export WTP_BUILD="${WTP_BUILD:-15}"
 ./build-app.sh
 APP_DIR=".build/WhatThePort.app"
 test -d "${APP_DIR}/Contents/Resources/WhatThePort_WhatThePort.bundle"

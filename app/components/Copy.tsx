@@ -61,8 +61,9 @@ const COMMANDS = [
 
 const FACTS = [
   { name: 'Native', detail: 'Swift, no Electron, no Dock icon.' },
-  { name: 'Private', detail: 'Nothing leaves your Mac.' },
+  { name: 'Privacy', detail: 'Local port scans; cloud captions only when started.' },
   { name: 'Shortcut', detail: '⌥⌘P', mono: true },
+  { name: 'Live captions', detail: 'Compact captions · Solid or transparent · Local ASR or Step Plan' },
 ]
 
 export function SectionCopy({ index, stars }: { index: number; stars: number | null }) {

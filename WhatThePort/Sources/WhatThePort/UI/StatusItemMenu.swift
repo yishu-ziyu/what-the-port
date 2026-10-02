@@ -34,6 +34,8 @@ enum StatusItemMenu {
         browser.isEnabled = !monitor.servers.isEmpty
         menu.addItem(browser)
 
+        menu.addItem(ActionItem(L10n.text("Live captions…")) { LiveCaptionsWindow.shared.show() })
+
         menu.addItem(.separator())
         let settings = ActionItem(L10n.text("Settings…"), action: openSettings)
         settings.keyEquivalent = ","

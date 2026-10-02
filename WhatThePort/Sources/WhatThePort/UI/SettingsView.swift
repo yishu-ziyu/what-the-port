@@ -114,6 +114,13 @@ private struct GeneralPane: View {
                 }
                 .onChange(of: hotkey) { _, enabled in HotKey.shared.setEnabled(enabled) }
             }
+            Section(L10n.text("Live captions")) {
+                HStack {
+                    SettingLabel(L10n.text("Computer audio captions"), caption: L10n.text("Local ASR or Step Plan; English-to-Chinese translation"))
+                    Spacer()
+                    Button(L10n.text("Open captions")) { LiveCaptionsWindow.shared.show() }
+                }
+            }
             Section(L10n.text("Terminal")) {
                 CommandLineToolRow()
             }

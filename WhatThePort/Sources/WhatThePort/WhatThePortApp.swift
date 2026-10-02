@@ -30,6 +30,9 @@ struct WhatThePortApp: App {
             let directory = CommandLine.arguments.dropFirst(index + 1).first ?? FileManager.default.currentDirectoryPath
             SnapshotRenderer.run(monitor: monitor, directory: directory)
         }
+        if CommandLine.arguments.contains("--captions") {
+            DispatchQueue.main.async { LiveCaptionsWindow.shared.show() }
+        }
         _ = AppUpdater.shared
         AlertCenter.shared.start(monitor: monitor)
         AlertCenter.shared.announceTUI()
@@ -62,6 +65,9 @@ struct WhatThePortApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Set once the menu bar icon appears, since only views can open windows.
     @MainActor static var openSettings: (() -> Void)?
+
+    @MainActor
+    func applicationWillTerminate(_ notification: Notification) { LiveCaptions.shared.stop() }
 
     /// Opening the app again (from Finder, Spotlight or Launchpad) opens the
     /// popover, or Settings when the menu bar is hiding the icon, so people

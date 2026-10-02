@@ -302,3 +302,73 @@
 "wtp command" = "wtp 命令";
 "wtp points to a copy of WhatThePort that’s no longer there" = "wtp 指向的 WhatThePort 已不存在";
 "That's over your %@ GB alert. %@" = "已超过 %@ GB 提醒阈值。%@";
+
+// Live captions
+"Live captions" = "实时字幕";
+"Live captions…" = "实时字幕…";
+"Computer audio captions" = "电脑声音实时字幕";
+"Chinese or English; recognized on this Mac" = "中文或英语，在本机识别";
+"Open captions" = "打开字幕";
+"Speech language" = "语音语言";
+"Start captions" = "开始字幕";
+"Stop captions" = "停止字幕";
+"Play a video or audio on your Mac after starting captions." = "开始字幕后，播放电脑里的视频或音频。";
+"Computer audio · On-device · No recording saved" = "电脑声音 · 本机识别 · 不保存音频";
+"Captions stopped" = "字幕已停止";
+"Preparing captions…" = "正在准备字幕…";
+"Receiving computer audio" = "正在接收电脑声音";
+"Listening for computer audio…" = "正在等待电脑声音…";
+"Stopping captions…" = "正在停止字幕…";
+"Couldn’t start captions" = "字幕不可用";
+"System Settings…" = "系统设置…";
+"Allow Speech Recognition in System Settings, then try again." = "请在系统设置中允许语音识别，然后重试。";
+"Allow Screen & System Audio Recording in System Settings, then restart WhatThePort." = "请在系统设置中允许屏幕与系统音频录制，然后重启 WhatThePort。";
+"On-device recognition is unavailable for this language. Enable Dictation for it in System Settings, then try again." = "此语言的本机识别不可用。请在系统设置中启用对应语言的听写，然后重试。";
+"No display is available for capturing computer audio." = "未找到可用于采集电脑声音的显示器。";
+"English original" = "英语原文";
+"Original captions" = "原文字幕";
+"Chinese translation" = "中文翻译";
+"Waiting for translation…" = "正在等待翻译…";
+"Chinese translation requires macOS 15 or later." = "中文翻译需要 macOS 15 或更高版本。";
+"Translation unavailable. Stop and start captions to retry." = "翻译不可用，请停止并重新开始字幕以重试。";
+
+// Model-powered live captions
+"Recognition" = "识别模型";
+"Play a video or audio after starting captions. Text appears after each short audio segment." = "开始后播放电脑里的视频或音频。每段短音频识别完成后显示字幕。";
+"Translating this segment…" = "正在翻译这一段…";
+"Translation stopped" = "翻译已停止";
+"No microphone · Closing stops capture" = "不采集麦克风 · 关窗即停止";
+"Audio → StepAudio 2.5 ASR · English text → Step 3.7 Flash · Uses Step Plan" = "音频发送至 StepAudio 2.5 ASR · 英语文字发送至 Step 3.7 Flash · 使用 Step Plan";
+"Audio stays on this Mac · English text → Step 3.7 Flash · Uses Step Plan" = "音频留在本机 · 英语文字发送至 Step 3.7 Flash · 使用 Step Plan";
+"Audio stays on this Mac · SenseVoice-Small · Temporary audio deleted after recognition" = "音频留在本机 · SenseVoice-Small · 识别后删除临时音频";
+"Recognizing audio segment…" = "正在识别音频片段…";
+"Recognition is falling behind. Stop and restart captions; no audio was silently skipped." = "识别速度落后于播放。请停止并重新开始；应用不会静默跳过音频。";
+"Configure STEPFUN_API_KEY in ~/.config/ai-providers/env.local." = "请在 ~/.config/ai-providers/env.local 中配置 STEPFUN_API_KEY。";
+"SenseVoice-Small is not installed at the configured local path." = "配置的本机路径中未安装 SenseVoice-Small。";
+"The local ASR process failed." = "本机 ASR 进程失败。";
+"Invalid model response." = "模型响应无效。";
+"ASR returned an error. No other provider was used." = "ASR 返回错误。没有切换其他供应商。";
+"The translation model returned no text." = "翻译模型没有返回文字。";
+"Local ASR or Step Plan; English-to-Chinese translation" = "本机 ASR 或 Step Plan；英语转中文字幕";
+
+// Compact caption panel
+"Caption settings" = "字幕设置";
+"Close and stop captions" = "关闭并停止字幕";
+"Ready when you are" = "准备好就开始";
+"Waiting for speech…" = "正在等待说话声…";
+"Play computer audio to see captions here." = "播放电脑里的视频或音频，字幕会显示在这里。";
+"Review" = "回看";
+"Recent captions" = "最近片段";
+"Translation not available" = "暂无译文";
+"Show original text" = "显示英语原文";
+"Stop captions before changing the model or language." = "停止字幕后，可切换模型或语言。";
+"Local ASR · Cloud translation" = "本机识别 · 云端翻译";
+"Local · Chinese" = "本机 · 中文原文";
+"Cloud · English → Chinese" = "云端 · 英 → 中";
+"Cloud · Chinese" = "云端 · 中文原文";
+"Audio → StepAudio 2.5 ASR · Uses Step Plan · No translation" = "音频发送至 StepAudio 2.5 ASR · 使用 Step Plan · 不调用翻译";
+"Start" = "开始";
+
+"Viewing mode" = "观看模式";
+"Solid panel" = "浅灰实底";
+"Transparent subtitles" = "透明字幕";
