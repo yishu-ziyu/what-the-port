@@ -69,9 +69,11 @@ private struct GeneralPane: View {
     @AppStorage(Preferences.editor) private var editor = "auto"
     @AppStorage(Preferences.terminal) private var terminal = "com.apple.Terminal"
     @AppStorage(Preferences.hotkey) private var hotkey = true
+    @AppStorage(Preferences.screenshotHotkey) private var screenshotHotkey = false
     @AppStorage(Preferences.scanInterval) private var scanInterval = 2.0
     @AppStorage(Preferences.shareUsage) private var shareUsage = true
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
+    @State private var screenshotShortcutError = false
 
     var body: some View {
         Form {
@@ -113,6 +115,17 @@ private struct GeneralPane: View {
                     SettingLabel(L10n.text("Show popover with ⌥⌘P"), caption: L10n.text("Global shortcut"))
                 }
                 .onChange(of: hotkey) { _, enabled in HotKey.shared.setEnabled(enabled) }
+                Toggle(isOn: $screenshotHotkey) {
+                    SettingLabel(L10n.text("Copy a screenshot with ⌘X"), caption: L10n.text("Replaces Cut in other apps; press Esc to cancel"))
+                }
+                .onChange(of: screenshotHotkey) { _, enabled in
+                    let registered = HotKey.shared.setScreenshotEnabled(enabled)
+                    screenshotShortcutError = enabled && !registered
+                }
+                if screenshotShortcutError {
+                    Text(L10n.text("Couldn’t enable ⌘X. Another app may be using it."))
+                        .font(Theme.caption).foregroundStyle(.red)
+                }
             }
             Section(L10n.text("Live captions")) {
                 HStack {
@@ -144,6 +157,7 @@ private struct GeneralPane: View {
                     .foregroundStyle(.secondary)
             }
         }
+        .onAppear { screenshotShortcutError = screenshotHotkey && !HotKey.shared.isScreenshotRegistered }
     }
 }
 

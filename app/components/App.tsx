@@ -2,6 +2,7 @@
 
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import styles from './landing.module.css'
+import AIUsageDemo from './AIUsageDemo'
 import { AMBER, BackIcon, Chevron, ClaudeIcon, CodexIcon, Colon, DotGrid, OpenIcon, VercelIcon } from './icons'
 import { GET_IT, TERMINAL } from './sections'
 import {
@@ -16,12 +17,14 @@ import {
   formatTotal,
   memoryChart,
   portColor,
+  serverResources,
+  stoppedPorts,
 } from './servers'
 
 // A working copy of the WhatThePort popover. Scrolling picks the view for each
 // section; clicking around works like the real app until the next section.
 
-type View = { name: 'list' } | { name: 'detail'; port: string } | { name: 'cleanUp' }
+type View = { name: 'list' } | { name: 'detail'; port: string } | { name: 'cleanUp' } | { name: 'usage' }
 
 const SECTION_VIEWS: View[] = [
   { name: 'list' },
@@ -66,7 +69,8 @@ export function useDemo(section: number) {
     [running],
   )
 
-  const stop = useCallback((ports: string[]) => {
+  const stop = useCallback((selectedPorts: string[]) => {
+    const ports = stoppedPorts(SERVERS, selectedPorts)
     setRunning((current) => current.filter((port) => !ports.includes(port)))
     setSelected((current) => current.filter((port) => !ports.includes(port)))
     setDirection(-1)
@@ -141,12 +145,17 @@ export function AppPopover({ demo }: { demo: Demo }) {
         : 'empty'
 
   let content: ReactNode
-  if (view.name === 'detail') content = <DetailView demo={demo} server={SERVERS.find((s) => s.port === view.port)!} />
+  if (view.name === 'usage') content = <AIUsageDemo />
+  else if (view.name === 'detail') content = <DetailView demo={demo} server={SERVERS.find((s) => s.port === view.port)!} />
   else content = <ListView demo={demo} />
 
   return (
     <Frame viewKey={key}>
       <div key={key} className={styles.view} style={{ ['--dir' as string]: direction }}>
+        <div className={styles.usageTabs} role="tablist" aria-label="Page">
+          <button role="tab" aria-selected={view.name !== 'usage'} onClick={() => demo.go({ name: 'list' }, -1)}>Servers</button>
+          <button role="tab" aria-selected={view.name === 'usage'} onClick={() => demo.go({ name: 'usage' }, 1)}>AI usage</button>
+        </div>
         {content}
       </div>
     </Frame>
@@ -191,11 +200,12 @@ function ListView({ demo }: { demo: Demo }) {
   const [focus, setFocus] = useState<string | null>(null)
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
   const [cpuAll, setCpuAll] = useState(false)
-  const total = demo.running.reduce((sum, s) => sum + s.memory, 0)
-  const cpu = Math.round(demo.running.reduce((sum, s) => sum + s.cpu, 0) / 8)
+  const resources = serverResources(demo.running)
+  const total = resources.memory
+  const cpu = Math.round(resources.cpu / 8)
   const cleanUpCount = demo.running.filter((s) => s.cleanUp?.suggested).length
   const chosen = demo.running.filter((s) => demo.selected.includes(s.port))
-  const freed = chosen.reduce((sum, s) => sum + s.memory, 0)
+  const freed = serverResources(chosen).memory
   const focusedServer = demo.running.find((s) => s.port === focus)
   const focusedApp = OTHER_APPS.find((app) => app.id === focus)
   const focusedMemory = focusedServer?.memory ?? focusedApp?.memory
@@ -258,7 +268,7 @@ function ListView({ demo }: { demo: Demo }) {
               key={s.port}
               type="button"
               className={styles.memorySegment}
-              style={{ flexGrow: s.memory, color: portColor(s.port) }}
+              style={{ flexGrow: resources.memoryByPort.get(s.port) ?? 0, color: portColor(s.port) }}
               data-raised
               data-focused={activePort === s.port}
               data-dim={

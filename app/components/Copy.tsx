@@ -61,9 +61,11 @@ const COMMANDS = [
 
 const FACTS = [
   { name: 'Native', detail: 'Swift, no Electron, no Dock icon.' },
-  { name: 'Privacy', detail: 'Local port scans; cloud captions only when started.' },
+  { name: 'Privacy', detail: 'Local port scans; provider usage on request; cloud captions only when started.' },
   { name: 'Shortcut', detail: '⌥⌘P', mono: true },
+  { name: 'Screenshot', detail: '⌘X (opt-in; replaces Cut)', mono: true },
   { name: 'Live captions', detail: 'Compact captions · Solid or transparent · Local ASR or Step Plan' },
+  { name: 'AI usage', detail: 'Local edition · Nine provider entries · Actual quota periods · Estimates labeled · Demo data on this site' },
 ]
 
 export function SectionCopy({ index, stars }: { index: number; stars: number | null }) {
@@ -117,7 +119,7 @@ export function SectionCopy({ index, stars }: { index: number; stars: number | n
           <h2 className={styles.headline}>Stops the ones you forgot.</h2>
           <p className={styles.body}>
             Clean up selects servers from deleted worktrees or idle for hours. Tick the ones to go and WhatThePort stops
-            each whole process tree. Postgres and Redis are protected by default.
+            each server’s own process tree. Postgres and Redis are protected by default.
           </p>
         </div>
       )

@@ -14,12 +14,13 @@
 - **Every dev server at a glance.** Port, project name, git branch, uptime and memory for each local server, with stable port colors and a whole-Mac memory bar for servers, other apps and free RAM.
 - **Knows which agent started it.** Servers launched by Claude Code, Codex or Conductor link back to the session that started them, so you can resume the conversation (`claude --resume`, `codex resume`) or find the Conductor workspace.
 - **Leak detection.** When a server passes 2 GB of memory or grows more than 500 MB in ten minutes, its memory reading and the menu bar icon turn amber and you get one notification with Details, Stop and Snooze. Thresholds are adjustable.
-- **Resource charts.** Ten minutes of memory and CPU history per server, summed across its whole process tree.
-- **Clean up.** Preselects servers from deleted git worktrees or idle for hours, then stops each whole process tree in bulk. Postgres, Redis, MongoDB and MySQL are protected by default. Cleanup can be Off, Ask or Automatic; leaking servers are never stopped automatically.
-- **Stop and restart.** Stop sends SIGTERM to the whole process tree, then SIGKILL after a short delay. Restart reruns the original command in the same folder.
+- **Resource charts.** Ten minutes of memory and CPU history per server, summed across its own process tree.
+- **Clean up.** Preselects servers from deleted git worktrees or idle for hours, then stops each server’s own process tree in bulk. Postgres, Redis, MongoDB and MySQL are protected by default. Cleanup can be Off, Ask or Automatic; leaking servers are never stopped automatically.
+- **Stop and restart.** Stop sends SIGTERM to the server’s own process tree, then SIGKILL after a short delay. Restart reruns the original command in the same folder.
 - **Previews and pull requests (optional).** A Vercel preview button and the branch’s pull request, through the GitHub CLI you’re already signed in to.
 - **Terminal UI.** `wtp` shows the same servers, details and Clean up in your terminal. `wtp list --json` prints them as JSON for scripts and coding agents.
 - **Global shortcut.** ⌥⌘P opens the popover.
+- **Screenshot to clipboard.** Enable the ⌘X shortcut in Settings → General to select an area and copy the image directly to the clipboard. Esc cancels without replacing it. The shortcut is off by default because it replaces Cut in other apps while enabled.
 - **Interface language.** English and Simplified Chinese, selected in Settings → General → Language. Restart to apply; terminal output and user data are unchanged.
 - **Native.** Written in Swift. No Electron, no Dock icon. Light and dark mode.
 
@@ -46,7 +47,7 @@ wtp --version     Print the version
 
 ## How it works
 
-WhatThePort reads listening TCP sockets with `lsof`, then inspects each server’s process tree through `libproc` and `sysctl`: memory footprint, CPU time, working directory, arguments and environment. From the working directory it finds the project manifest (package.json, pyproject.toml, Cargo.toml, go.mod, Gemfile), framework and git branch. Session links come from environment variables that Claude Code and Conductor pass to the commands they run, and from Codex’s session files. It rescans every 2 seconds.
+WhatThePort reads listening TCP sockets through `libproc`, then inspects each server’s process tree through `libproc` and `sysctl`: memory footprint, CPU time, working directory, arguments and environment. From the working directory it finds the project manifest (package.json, pyproject.toml, Cargo.toml, go.mod, Gemfile), framework and git branch. Session links come from environment variables that Claude Code and Conductor pass to the commands they run, and from Codex’s session files. It rescans every 2 seconds. In monorepos, sibling servers stay separate from their shared task runner. When one process serves several ports, each row shows the service’s usage; totals count each process once, and the memory bar divides shared usage between those ports. Stopping or restarting that process affects all ports it serves.
 
 By default it watches ports 3000–65535 and processes that look like dev servers: node, bun, deno, python, uvicorn, gunicorn, ruby, rails, puma, php, java, go, cargo, dotnet, elixir, nginx, postgres, redis, mongod, mysql and more. Both are configurable in Settings → Ports & processes.
 
@@ -68,7 +69,7 @@ The prebuilt download is for Apple Silicon Macs on macOS 14 Sonoma or later. You
 
 ### How is it different from `lsof` or `npx kill-port`?
 
-Those answer one question about one port. WhatThePort keeps every dev server in view all the time, names them by project and branch, shows memory and CPU for the whole process tree, warns you about leaks, links servers to the agent session that started them, and stops the whole tree, not just one PID.
+Those answer one question about one port. WhatThePort keeps every dev server in view all the time, names them by project and branch, shows memory and CPU for the server’s own process tree, warns you about leaks, links servers to the agent session that started them, and stops the whole tree, not just one PID.
 
 ### Will it stop my database?
 
@@ -81,6 +82,10 @@ Yes. `wtp list --json` gives agents a machine-readable list of every server, its
 ### Where is the menu bar icon?
 
 It’s a small 5×5 dot grid showing a colon. If the menu bar is full, macOS hides icons that don’t fit: click » at its edge on macOS 27, or check System Settings → Menu Bar. Opening WhatThePort again from Finder or Spotlight shows the popover.
+
+## Fork-only AI usage (local build 21)
+
+The local menu adds nine provider entries: Codex, Claude, Cursor, OpenCode Go, Antigravity, z.ai, MiniMax, Kimi Code and StepFun. Provider-specific returned names, periods, reset times, third/extra windows and service rows drive Pace/Ring views. Codex Pro reporting weekly only remains one window. StepFun reporting credit quota without reset timing receives no synthetic hourly/weekly limit. Local estimates cannot establish remaining quota and receive no quota rings or pace prediction. Errors are independent; temporary failures preserve measurement time, rejected login hides current quota. The bundled CodexBar CLI 0.68.0 uses an isolated private configuration, copied once without altering the original. Browser/external account identity cannot be established before query, so non-Codex disk caches are not restored. The website examples are deterministic and explicitly labeled, never access visitor credentials. Real queries succeeded for eight providers. Claude uses an explicitly authorized read of the default Claude Code Keychain item and the official OAuth usage endpoint; the token stays in memory and third-party API environment values are removed for that query. OpenCode Go currently supplies only an estimate. Local bilingual builds keep a stable certificate identity to preserve Screen Recording grants across updates; real repeated-screenshot acceptance is still pending. Full history migration, multi-account management and CodexBar retirement remain pending. This is not a published download claim.
 
 ## Fork-only live captions
 

@@ -83,9 +83,12 @@
 "Confirmed" = "已确认";
 "Continue" = "继续";
 "Copy URL" = "复制网址";
+"Copy a screenshot with ⌘X" = "按 ⌘X 选区截图并复制";
 "Copy command" = "复制命令";
 "Copy session ID" = "复制会话 ID";
 "Couldn’t add the login item. Try again or check System Settings." = "无法添加登录项，请重试或检查系统设置。";
+"Couldn’t enable ⌘X. Another app may be using it." = "无法启用 ⌘X；可能已被其他应用占用。";
+"Couldn’t start screenshot" = "无法开始截图";
 "Couldn’t request notifications. Try again or check System Settings." = "无法申请通知权限，请重试或检查系统设置。";
 "Couldn’t update %@: %@" = "无法更新 %@：%@";
 "Count" = "数量";
@@ -177,6 +180,7 @@
 "Preview build failed · %@" = "预览构建失败 · %@";
 "Preview button for each branch, from Vercel's GitHub deployments" = "通过 Vercel 的 GitHub 部署为各分支提供预览按钮";
 "Privacy" = "隐私";
+"Replaces Cut in other apps; press Esc to cancel" = "会替代其他应用的剪切操作；按 Esc 取消";
 "Processes" = "进程";
 "Protected processes" = "受保护的进程";
 "Pull request" = "拉取请求";
@@ -372,3 +376,51 @@
 "Viewing mode" = "观看模式";
 "Solid panel" = "浅灰实底";
 "Transparent subtitles" = "透明字幕";
+
+/* AI usage */
+"AI usage" = "AI 用量";
+"All providers" = "全部服务商";
+"Display mode" = "显示方式";
+"Pace" = "节奏";
+"Rings" = "环形";
+"Session quota" = "短期额度";
+"Weekly quota" = "每周额度";
+"remaining" = "剩余";
+"Connection failed. Showing the last successful reading." = "连接失败，保留上次成功读数。";
+"Only quota windows returned by the provider are shown." = "只展示服务商实际返回的额度窗口。";
+"Source: %@ · current account" = "来源：%@ · 当前账号";
+"Last successful reading:" = "最后成功采集：";
+"Live provider data, not local task cost." = "服务商真实额度，非本机任务费用。";
+"Querying usage…" = "正在查询用量…";
+"Sign in again to query usage." = "重新登录后可查询用量。";
+"Sign in with Codex, then refresh. Other logins are not changed." = "请在 Codex 中登录后刷新，不会改动其他登录。";
+"Usage reader is not installed in this build." = "此构建尚未安装用量查询程序。";
+"No valid reading yet. Try refreshing." = "尚未取得有效读数，请重试。";
+"Resets:" = "重置：";
+"Reset time unavailable" = "重置时间暂不可用";
+"Used %@" = "已用 %@";
+"Even budget %@" = "均匀预算 %@";
+"%.1f points ahead of even pace" = "比均匀速度快 %.1f 个百分点";
+"%.1f points behind even pace" = "比均匀速度慢 %.1f 个百分点";
+"Not enough timing data to calculate pace." = "时间数据不足，暂不计算节奏。";
+"Ring" = "环形";
+"Refresh" = "刷新";
+"ago" = "前";
+"Cached reading. Refresh to update." = "上次采集的读数，刷新后更新。";
+
+/* Multi-provider usage */
+"Refresh all" = "刷新全部";
+"Each provider uses its own quota periods." = "按各服务商的真实额度周期展示。";
+"Local estimate, not a provider measurement." = "本地估算，不是服务商实测。";
+"Local records cannot establish remaining quota. Refresh after signing in to the provider dashboard." = "本地记录不能确定剩余额度。登录服务商后台后可重新查询。";
+"Remaining quota unavailable" = "尚未取得真实剩余额度";
+"Source: %@ · collected account" = "来源：%@ · 采集时的账号";
+"Check %@ login or query credentials, then refresh. Other logins are not changed." = "请检查 %@ 的登录或查询凭据，再刷新。不会改动其他工具的登录。";
+"Provider configuration is unavailable." = "服务商配置不可用。";
+"Query timed out. Try refreshing." = "查询超时，请重试。";
+"5-hour" = "五小时额度";
+"Monthly quota" = "月度额度";
+"Daily quota" = "每日额度";
+"Quota" = "额度";
+
+"Credit" = "积分额度";

@@ -13,28 +13,40 @@ struct PopoverRoot: View {
     var startCleaning = false
     @Environment(\.openWindow) private var openWindow
     @State private var contentHeight: CGFloat = 0
+    @StateObject private var aiUsage = AIUsageCatalog()
+    @State private var showsAIUsage = false
 
     var body: some View {
-        Group {
-            switch route {
-            case .servers:
-                ServersView(monitor: monitor,
-                            startCleaning: startCleaning,
-                            openServer: { server in navigate(to: .detail(port: server.port)) },
-                            openApps: { navigate(to: .apps) },
-                            openSettings: openSettings)
-                    .transition(.move(edge: .leading).combined(with: .opacity))
-            case .detail(let port):
-                if let server = monitor.server(port: port) {
-                    ServerDetailView(server: server, monitor: monitor, back: { navigate(to: .servers) })
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
-                } else {
-                    // The server went away while we were looking at it.
-                    Color.clear.frame(height: 1).onAppear { navigate(to: .servers) }
+        VStack(spacing: 0) {
+            Picker(L10n.text("Page"), selection: $showsAIUsage) {
+                Text(L10n.text("Servers")).tag(false)
+                Text(L10n.text("AI usage")).tag(true)
+            }.pickerStyle(.segmented).labelsHidden().padding(12)
+            if showsAIUsage {
+                AIUsageDashboard(catalog: aiUsage)
+            } else {
+                Group {
+                    switch route {
+                    case .servers:
+                        ServersView(monitor: monitor,
+                                    startCleaning: startCleaning,
+                                    openServer: { server in navigate(to: .detail(port: server.port)) },
+                                    openApps: { navigate(to: .apps) },
+                                    openSettings: openSettings)
+                            .transition(.move(edge: .leading).combined(with: .opacity))
+                    case .detail(let port):
+                        if let server = monitor.server(port: port) {
+                            ServerDetailView(server: server, monitor: monitor, back: { navigate(to: .servers) })
+                                .transition(.move(edge: .trailing).combined(with: .opacity))
+                        } else {
+                            // The server went away while we were looking at it.
+                            Color.clear.frame(height: 1).onAppear { navigate(to: .servers) }
+                        }
+                    case .apps:
+                        AppsView(monitor: monitor, back: { navigate(to: .servers) })
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                    }
                 }
-            case .apps:
-                AppsView(monitor: monitor, back: { navigate(to: .servers) })
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
         .frame(width: Theme.popoverWidth)
@@ -53,6 +65,7 @@ struct PopoverRoot: View {
     private func consumePendingRoute() {
         guard let pending = monitor.pendingRoute else { return }
         monitor.pendingRoute = nil
+        showsAIUsage = false
         route = pending
     }
 

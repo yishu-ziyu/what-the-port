@@ -15,9 +15,11 @@
 
 ## 开发中（`main` 分支，尚未发布）
 
-以下改进已在源码中完成，会在下一个预发行版提供：
+以下改动已在源码中实现，尚未作为新的预发行版发布。源码、构建产物和已安装应用须分别核对；功能验收通过后再发布：
 
+- 服务归属与资源统计：同一启动器下的独立服务分别统计和停止；共享进程监听多个端口时，总资源去重。停止或重启该进程会影响它提供的所有端口。
 - 实时字幕：从“设置 → 通用 → 实时字幕”或菜单栏右键打开，采集电脑内部声音。可选本机 SenseVoice-Small 或阶跃 StepAudio 2.5 ASR；英语翻译使用 Step 3.7 Flash，走 Step Plan。原文与译文按段配对。新模型链路的安装版验收尚未通过，不能视为已交付功能。
+- 在“设置 → 通用”启用后，按 **⌘X** 拖选屏幕区域，截图直接进入剪贴板；按 Esc 取消。默认关闭，因为启用后会替代其他应用的剪切操作。
 - 应用内存页：点击“其他应用”，查看占内存最多的 5 个应用（辅助进程已并入所属应用）、进程数，以及与开发服务的对比。只展示，不提供关闭。
 - 能识别 Homebrew Python 和带版本号的 Python（如 `python3.13`）启动的服务。
 - 停止 Homebrew 服务（postgres、redis 等）改用 `brew services stop` 并先确认，不会停了又被系统拉起；Homebrew 服务显示服务名，不再显示 Homebrew 自己的分支。
@@ -68,3 +70,11 @@ swift test --jobs 4
 不采集麦克风。云端音频仅保留在应用内存中，本机识别需要临时音频文件；不保存字幕文件。界面在启动前明确显示音频与文字的发送对象。权限、网络、模型和翻译错误会直接显示，不静默切换供应商。识别队列满时停止并提示，不静默丢弃片段。
 
 本地 ad-hoc 签名的新版可能与旧授权签名不匹配。若开关开启仍被拒绝，应核对运行路径与 macOS 权限日志，再重新登记当前安装版的授权；不能仅凭开关状态判断权限可用。
+
+## 本地中文版：AI 用量（构建 21）
+
+菜单栏 → AI 用量 → 服务商详情。九个入口：Codex、Claude、Cursor、OpenCode Go、Antigravity、z.ai、MiniMax、Kimi Code、StepFun。只展示各服务商真实返回的业务名称、额度周期、重置时间和明细；节奏与环形共用读数。Codex Pro 本机只返回每周窗口，StepFun 本机返回积分额度，均不虚构其他周期。本地估算不展示真实剩余额度或节奏预测。单个服务商失败不隐藏其他读数；明确登录失效隐藏当前读数，临时失败保留原采集时间。
+
+复用随应用打包的 CodexBar CLI 0.68.0。配置首次复制到 `~/Library/Application Support/com.whattheport.app.local.zh/ai-usage/providers.json`，权限 0600；后续显式使用新配置，原配置不改动。浏览器／外部登录的活动账号不能提前证明，因此除 Codex 外不恢复磁盘缓存，重新查询；旧读数注明采集时账号。完整历史和多账号尚未迁移。
+
+本地中文版构建使用已有稳定证书，`WhatThePort/local-signing.env` 保存本机证书选择（不提交）；不再使用会随每次更新变化的 ad-hoc 签名。截图权限的真实双次操作仍需验收，见 [权限记录](docs/development/2026-10-03-screenshot-permission.md)。本地构建需将查询程序及 `CodexBar_CodexBarCore.bundle` 放入 `WhatThePort/.build/ai-usage-reader/`，运行 `cd WhatThePort && ./build-localized.sh`。运行时使用新应用自身的 `Contents/Helpers/`，不引用旧 GUI 安装目录。源码发现与适配原因见 [CodexBar 阅读记录](docs/development/codexbar-source-notes.md)。官网使用明确标记的示意数据，不读取访问者账号。Claude 官方订阅经用户授权后只读默认 Claude Code 登录项，以 OAuth 查询，Token 不写入配置或缓存，不继承第三方 API 路由；OpenCode Go 当前只有本地估算。本次不卸载 CodexBar、不提交或发布新版。

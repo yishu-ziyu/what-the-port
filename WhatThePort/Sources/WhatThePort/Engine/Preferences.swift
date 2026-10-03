@@ -9,6 +9,7 @@ enum Preferences {
     static let editor = "general.editor"
     static let terminal = "general.terminal"
     static let hotkey = "general.hotkey"
+    static let screenshotHotkey = "general.screenshotHotkey"
     static let captionTransparent = "captions.transparent"
     static let captionShowOriginal = "captions.showOriginal"
     static let scanInterval = "general.scanInterval"
@@ -67,6 +68,7 @@ enum Preferences {
             editor: "auto",
             terminal: "com.apple.Terminal",
             hotkey: true,
+            screenshotHotkey: false,
             captionShowOriginal: true,
             captionTransparent: false,
             scanInterval: 2.0,

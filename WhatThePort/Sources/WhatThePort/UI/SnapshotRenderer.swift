@@ -8,6 +8,82 @@ import UserNotifications
 /// clicking the menu bar.
 @MainActor
 enum SnapshotRenderer {
+    /// Uses the production query/store/view. Test-reader override is confined to this explicit capture command.
+    static func runAIUsage(directory: String) {
+        configureAppearance()
+        let output = URL(fileURLWithPath: directory, isDirectory: true)
+        try? FileManager.default.createDirectory(at: output, withIntermediateDirectories: true,
+                                                attributes: [.posixPermissions: 0o700])
+        let provider = CommandLine.arguments.firstIndex(of: "--ai-usage-provider")
+            .flatMap { CommandLine.arguments.dropFirst($0 + 1).first }.flatMap(AIUsageProvider.init(rawValue:)) ?? .codex
+        var client = ProviderUsageClient.system(provider: provider)
+        if let index = CommandLine.arguments.firstIndex(of: "--ai-usage-test-reader"),
+           let path = CommandLine.arguments.dropFirst(index + 1).first {
+            client = ProviderUsageClient(helper: URL(fileURLWithPath: path), owner: "explicit-capture-fixture", provider: provider)
+        }
+        let store = AIUsageStore(client: client, cacheURL: output.appendingPathComponent("query-cache.json"))
+        var completed = false
+        Task { await store.refresh(); completed = true }
+        let deadline = Date().addingTimeInterval(35)
+        while !completed && Date() < deadline { RunLoop.current.run(until: Date().addingTimeInterval(0.05)) }
+        guard completed else { fputs("Usage capture timed out\n", stderr); exit(1) }
+        if let snapshot = store.snapshot, let data = try? JSONEncoder().encode(snapshot) {
+            try? data.write(to: output.appendingPathComponent("reading.json"), options: .atomic)
+        }
+        let suite = "wtp-ai-capture-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        for mode in ["overview", "pace", "rings"] {
+            defaults.set(mode == "overview" ? "pace" : mode, forKey: "aiUsage.displayMode")
+            let view = AIUsageView(store: store, startsInDetail: mode != "overview", defaults: defaults, refreshOnAppear: false)
+                .frame(width: Theme.popoverWidth)
+                .background(Theme.popoverBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .padding(20)
+                .background(Theme.snapshotBackground)
+            let size = NSHostingView(rootView: view).fittingSize
+            renderWindow(view, size: size, to: output.appendingPathComponent("\(mode).png"))
+        }
+        print("Codex state: \(store.state); returned windows: \(store.snapshot?.windows.count ?? 0)")
+        exit(store.state == .ready ? 0 : 1)
+    }
+
+    static func runAIProviders(directory: String) {
+        configureAppearance()
+        let output = URL(fileURLWithPath: directory, isDirectory: true)
+        try? FileManager.default.createDirectory(at: output, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        let catalog = AIUsageCatalog()
+        var completed = false
+        Task { await catalog.refreshAll(); completed = true }
+        let deadline = Date().addingTimeInterval(110)
+        while !completed && Date() < deadline { RunLoop.current.run(until: Date().addingTimeInterval(0.05)) }
+        guard completed else { fputs("Provider capture timed out\n", stderr); exit(1) }
+        let dashboard = AIUsageDashboard(catalog: catalog, refreshOnAppear: false)
+            .frame(width: Theme.popoverWidth).background(Theme.popoverBackground)
+        renderWindow(dashboard, size: NSSize(width: Theme.popoverWidth, height: 490), to: output.appendingPathComponent("overview.png"))
+        let suite = "wtp-ai-capture-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var results: [[String: Any]] = []
+        for store in catalog.stores {
+            for mode in ["pace", "rings"] {
+                defaults.set(mode, forKey: "aiUsage.displayMode")
+                let view = AIUsageView(store: store, startsInDetail: true, defaults: defaults, refreshOnAppear: false)
+                    .frame(width: Theme.popoverWidth).background(Theme.popoverBackground)
+                renderWindow(view, size: NSHostingView(rootView: view).fittingSize,
+                             to: output.appendingPathComponent("\(store.provider.rawValue)-\(mode).png"))
+            }
+            results.append(["provider": store.provider.rawValue, "state": String(describing: store.state),
+                            "windows": store.snapshot?.windows.count ?? 0, "estimated": store.snapshot?.isEstimated ?? false,
+                            "issue": store.issue.map { String(describing: $0) } ?? "none"])
+        }
+        if let data = try? JSONSerialization.data(withJSONObject: results, options: [.sortedKeys, .prettyPrinted]) {
+            try? data.write(to: output.appendingPathComponent("results.json"), options: .atomic)
+        }
+        print("Provider capture finished: \(catalog.stores.filter { $0.state == .ready }.count)/\(catalog.stores.count) queries returned data")
+        exit(0)
+    }
+
     static func run(monitor: ServerMonitor, directory: String) {
         configureAppearance()
         let scheme: ColorScheme = NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? .dark : .light

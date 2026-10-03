@@ -83,9 +83,12 @@
 "Confirmed" = "Confirmed";
 "Continue" = "Continue";
 "Copy URL" = "Copy URL";
+"Copy a screenshot with ⌘X" = "Copy a screenshot with ⌘X";
 "Copy command" = "Copy command";
 "Copy session ID" = "Copy session ID";
 "Couldn’t add the login item. Try again or check System Settings." = "Couldn’t add the login item. Try again or check System Settings.";
+"Couldn’t enable ⌘X. Another app may be using it." = "Couldn’t enable ⌘X. Another app may be using it.";
+"Couldn’t start screenshot" = "Couldn’t start screenshot";
 "Couldn’t request notifications. Try again or check System Settings." = "Couldn’t request notifications. Try again or check System Settings.";
 "Couldn’t update %@: %@" = "Couldn’t update %@: %@";
 "Count" = "Count";
@@ -177,6 +180,7 @@
 "Preview build failed · %@" = "Preview build failed · %@";
 "Preview button for each branch, from Vercel's GitHub deployments" = "Preview button for each branch, from Vercel's GitHub deployments";
 "Privacy" = "Privacy";
+"Replaces Cut in other apps; press Esc to cancel" = "Replaces Cut in other apps; press Esc to cancel";
 "Processes" = "Processes";
 "Protected processes" = "Protected processes";
 "Pull request" = "Pull request";
@@ -372,3 +376,51 @@
 "Viewing mode" = "Viewing mode";
 "Solid panel" = "Solid panel";
 "Transparent subtitles" = "Transparent subtitles";
+
+/* AI usage */
+"AI usage" = "AI usage";
+"All providers" = "All providers";
+"Display mode" = "Display mode";
+"Pace" = "Pace";
+"Rings" = "Rings";
+"Session quota" = "Session quota";
+"Weekly quota" = "Weekly quota";
+"remaining" = "remaining";
+"Connection failed. Showing the last successful reading." = "Connection failed. Showing the last successful reading.";
+"Only quota windows returned by the provider are shown." = "Only quota windows returned by the provider are shown.";
+"Source: %@ · current account" = "Source: %@ · current account";
+"Last successful reading:" = "Last successful reading:";
+"Live provider data, not local task cost." = "Live provider data, not local task cost.";
+"Querying usage…" = "Querying usage…";
+"Sign in again to query usage." = "Sign in again to query usage.";
+"Sign in with Codex, then refresh. Other logins are not changed." = "Sign in with Codex, then refresh. Other logins are not changed.";
+"Usage reader is not installed in this build." = "Usage reader is not installed in this build.";
+"No valid reading yet. Try refreshing." = "No valid reading yet. Try refreshing.";
+"Resets:" = "Resets:";
+"Reset time unavailable" = "Reset time unavailable";
+"Used %@" = "Used %@";
+"Even budget %@" = "Even budget %@";
+"%.1f points ahead of even pace" = "%.1f points ahead of even pace";
+"%.1f points behind even pace" = "%.1f points behind even pace";
+"Not enough timing data to calculate pace." = "Not enough timing data to calculate pace.";
+"Ring" = "Ring";
+"Refresh" = "Refresh";
+"ago" = "ago";
+"Cached reading. Refresh to update." = "Cached reading. Refresh to update.";
+
+/* Multi-provider usage */
+"Refresh all" = "Refresh all";
+"Each provider uses its own quota periods." = "Each provider uses its own quota periods.";
+"Local estimate, not a provider measurement." = "Local estimate, not a provider measurement.";
+"Local records cannot establish remaining quota. Refresh after signing in to the provider dashboard." = "Local records cannot establish remaining quota. Refresh after signing in to the provider dashboard.";
+"Remaining quota unavailable" = "Remaining quota unavailable";
+"Source: %@ · collected account" = "Source: %@ · collected account";
+"Check %@ login or query credentials, then refresh. Other logins are not changed." = "Check %@ login or query credentials, then refresh. Other logins are not changed.";
+"Provider configuration is unavailable." = "Provider configuration is unavailable.";
+"Query timed out. Try refreshing." = "Query timed out. Try refreshing.";
+"5-hour" = "5-hour";
+"Monthly quota" = "Monthly quota";
+"Daily quota" = "Daily quota";
+"Quota" = "Quota";
+
+"Credit" = "Credit";

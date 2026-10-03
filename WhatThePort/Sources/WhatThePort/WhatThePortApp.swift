@@ -5,6 +5,13 @@ enum Main {
     @MainActor static func main() {
         // Run as `wtp` (a symlink to this binary) or with --tui for the terminal UI.
         if TerminalCommand.isRequested { TerminalCommand.run() }
+        if let index = CommandLine.arguments.firstIndex(of: "--probe-ai-usage"),
+           let directory = CommandLine.arguments.dropFirst(index + 1).first {
+            let provider = CommandLine.arguments.firstIndex(of: "--ai-usage-provider")
+                .flatMap { CommandLine.arguments.dropFirst($0 + 1).first }.flatMap(AIUsageProvider.init(rawValue:)) ?? .codex
+            try? AIUsageConfiguration.prepare()
+            AIUsageProbe.run(directory: directory, provider: provider)
+        }
         WhatThePortApp.main()
     }
 }
@@ -16,12 +23,21 @@ struct WhatThePortApp: App {
     init() {
         FontLoader.registerBundledFonts()
         Preferences.register()
+        try? AIUsageConfiguration.prepare()
         // Initialize AppKit for snapshot mode without overriding its appearance.
         _ = NSApplication.shared
         let monitor = ServerMonitor()
         // The popover turns this on while it's open.
         monitor.showsOtherApps = false
         _monitor = StateObject(wrappedValue: monitor)
+        if let index = CommandLine.arguments.firstIndex(of: "--snapshot-ai-providers"),
+           let directory = CommandLine.arguments.dropFirst(index + 1).first {
+            SnapshotRenderer.runAIProviders(directory: directory)
+        }
+        if let index = CommandLine.arguments.firstIndex(of: "--snapshot-ai-usage"),
+           let directory = CommandLine.arguments.dropFirst(index + 1).first {
+            SnapshotRenderer.runAIUsage(directory: directory)
+        }
         if let index = CommandLine.arguments.firstIndex(of: "--snapshot-onboarding") {
             let directory = CommandLine.arguments.dropFirst(index + 1).first ?? FileManager.default.currentDirectoryPath
             SnapshotRenderer.runOnboarding(monitor: monitor, directory: directory)
@@ -37,6 +53,7 @@ struct WhatThePortApp: App {
         AlertCenter.shared.start(monitor: monitor)
         AlertCenter.shared.announceTUI()
         HotKey.shared.setEnabled(UserDefaults.standard.bool(forKey: Preferences.hotkey))
+        HotKey.shared.setScreenshotEnabled(UserDefaults.standard.bool(forKey: Preferences.screenshotHotkey))
         monitor.start()
         Usage.start()
     }

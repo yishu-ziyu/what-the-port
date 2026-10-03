@@ -1,5 +1,9 @@
 /* ─── Page ─────────────────────────────────────────────── */
 
+.usageTabs { display: flex; gap: 4px; margin: 12px; padding: 3px; border-radius: 6px; background: #ffffff0f; }
+.usageTabs button { flex: 1; border: 0; padding: 6px; border-radius: 4px; background: transparent; color: #b8b8c2; font: inherit; cursor: pointer; }
+.usageTabs button[aria-selected='true'] { background: #ffffff20; color: #f5f5f7; }
+
 .landing {
   background-color: #0b0d12;
   color: #ffffff;

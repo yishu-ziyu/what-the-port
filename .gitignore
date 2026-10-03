@@ -27,3 +27,6 @@ WhatThePort/update-config.env
 # Python tooling
 __pycache__/
 *.pyc
+
+# Machine-local certificate selection (no private key or credentials).
+WhatThePort/local-signing.env
