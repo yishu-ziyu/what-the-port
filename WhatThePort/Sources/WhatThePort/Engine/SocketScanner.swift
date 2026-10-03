@@ -11,6 +11,8 @@ struct ListeningSocket {
 
 struct SocketScan {
     var listening: [ListeningSocket] = []
+    /// Keep every owner of shared sockets, including filtered-out listeners.
+    var listenerPidsByPort: [Int: Set<pid_t>] = [:]
     /// Inbound established connections, keyed by local port.
     var inboundConnections: [Int: Int] = [:]
 }
@@ -29,6 +31,7 @@ enum SocketScanner {
             for socket in tcpSockets(of: pid) {
                 switch Int32(socket.state) {
                 case TSI_S_LISTEN:
+                    result.listenerPidsByPort[socket.port, default: []].insert(pid)
                     let name = command ?? processName(pid)
                     command = name
                     if var existing = byPort[socket.port] {

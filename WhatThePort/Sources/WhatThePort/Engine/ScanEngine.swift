@@ -20,7 +20,7 @@ final class ScanEngine: @unchecked Sendable {
     /// Processes that sit between a shell and the actual server, e.g. `npm run dev`.
     private static let runners: Set<String> = [
         "node", "npm", "npx", "pnpm", "yarn", "bun", "bunx", "deno", "turbo", "nx",
-        "python", "python3", "Python", "uv", "poetry", "pipenv",
+        "python", "python3", "Python", "uv", "poetry", "pipenv", "uvicorn", "gunicorn",
         "ruby", "bundle", "rails", "go", "air", "cargo", "java", "gradle", "mvn",
         "dotnet", "php", "mix", "beam.smp", "elixir",
     ]
@@ -31,21 +31,28 @@ final class ScanEngine: @unchecked Sendable {
 
     private let projects = ProjectResolver()
     private let agents = AgentSessionResolver()
-    private var previousCPU: [pid_t: (nanoseconds: UInt64, at: Date)] = [:]
+    struct Inspector {
+        var usage: (pid_t) -> ProcUsage? = ProcessInspector.usage
+        var arguments: (pid_t) -> ProcArgs? = ProcessInspector.arguments
+        var currentDirectory: (pid_t) -> String? = ProcessInspector.currentDirectory
+    }
+    private let inspector: Inspector
+    init(inspector: Inspector = Inspector()) { self.inspector = inspector }
+
+    private var previousCPU: [pid_t: (start: Date, nanoseconds: UInt64, at: Date)] = [:]
     private var histories: [String: [Sample]] = [:]
     private var lastActive: [String: Date] = [:]
     private var argsCache: [pid_t: (start: Date, args: ProcArgs?)] = [:]
     private var launchdLabels: [pid_t: (start: Date, label: String?)] = [:]
 
     func scan(_ config: ScanConfig) -> [Server] {
-        let now = Date()
-        let sockets = SocketScanner.scan()
-        let processes = ProcessInspector.allProcesses()
+        scan(config, sockets: SocketScanner.scan(), processes: ProcessInspector.allProcesses(), now: Date())
+    }
 
-        var children: [pid_t: [pid_t]] = [:]
-        for process in processes.values { children[process.ppid, default: []].append(process.pid) }
-        var listeningPorts: [pid_t: Set<Int>] = [:]
-        for socket in sockets.listening { listeningPorts[socket.pid, default: []].insert(socket.port) }
+    /// Snapshot inputs keep ownership and sampling testable without real processes.
+    func scan(_ config: ScanConfig, sockets: SocketScan, processes: [pid_t: ProcSnapshot], now: Date) -> [Server] {
+        let ownership = ProcessTree(processes: processes, sockets: sockets)
+        var sampled: [pid_t: (memory: UInt64, cpu: Double)] = [:]
 
         var servers: [Server] = []
         var seenKeys = Set<String>()
@@ -58,8 +65,9 @@ final class ScanEngine: @unchecked Sendable {
                   Self.isAllowed(socket.command, in: config.allowlist),
                   let listener = processes[socket.pid] else { continue }
 
-            let root = rootProcess(for: listener, port: socket.port, in: processes, listeningPorts: listeningPorts)
-            let tree = descendants(of: root.pid, children: children, processes: processes)
+            let service = ownership.service(containing: listener.pid)
+            let root = rootProcess(for: listener, in: processes, ownership: ownership, service: service)
+            let tree = ownership.descendants(of: root.pid, service: service)
             livePids.formUnion(tree.map { $0.0.pid })
 
             var memory: UInt64 = 0
@@ -67,26 +75,36 @@ final class ScanEngine: @unchecked Sendable {
             var nodes: [ServerProcess] = []
             var starts: [pid_t: Date] = [:]
             for (process, depth) in tree {
-                let usage = ProcessInspector.usage(process.pid)
-                let footprint = usage?.footprint ?? 0
-                memory += footprint
-                if let usage {
-                    if let previous = previousCPU[process.pid], usage.cpuNanoseconds >= previous.nanoseconds {
-                        let elapsed = now.timeIntervalSince(previous.at)
-                        if elapsed > 0 {
-                            cpuPercent += Double(usage.cpuNanoseconds - previous.nanoseconds) / (elapsed * 1_000_000_000) * 100
+                if sampled[process.pid] == nil {
+                    let usage = inspector.usage(process.pid)
+                    var cpu = 0.0
+                    if let usage {
+                        if let previous = previousCPU[process.pid], previous.start == process.startTime,
+                           usage.cpuNanoseconds >= previous.nanoseconds {
+                            let elapsed = now.timeIntervalSince(previous.at)
+                            if elapsed > 0 {
+                                cpu = Double(usage.cpuNanoseconds - previous.nanoseconds) / (elapsed * 1_000_000_000) * 100
+                            }
                         }
+                        previousCPU[process.pid] = (process.startTime, usage.cpuNanoseconds, now)
+                    } else {
+                        previousCPU.removeValue(forKey: process.pid)
                     }
-                    previousCPU[process.pid] = (usage.cpuNanoseconds, now)
+                    sampled[process.pid] = (usage?.footprint ?? 0, cpu)
                 }
+                let sample = sampled[process.pid]!
+                memory += sample.memory
+                cpuPercent += sample.cpu
                 starts[process.pid] = process.startTime
-                nodes.append(ServerProcess(pid: process.pid, name: displayName(for: process), depth: depth, memory: footprint))
+                nodes.append(ServerProcess(pid: process.pid, name: displayName(for: process), depth: depth,
+                                           memory: sample.memory, cpu: sample.cpu))
             }
 
             let rootArgs = args(for: root)
-            let cwd = ProcessInspector.currentDirectory(listener.pid) ?? ProcessInspector.currentDirectory(root.pid)
-            // Apps that embed a node or python backend aren't dev servers.
-            if cwd == "/" || [rootArgs?.executablePath, args(for: listener)?.executablePath].contains(where: { $0.map(Self.isInsideApp) == true }) {
+            let cwd = inspector.currentDirectory(listener.pid) ?? inspector.currentDirectory(root.pid)
+            // Framework Python uses Python.app even when launched from a terminal.
+            if cwd == "/" || [rootArgs?.executablePath, args(for: listener)?.executablePath]
+                .compactMap({ $0 }).contains(where: Self.isInsideApp) {
                 continue
             }
             let environment = inheritedEnvironment(from: listener, root: root, in: processes)
@@ -96,16 +114,23 @@ final class ScanEngine: @unchecked Sendable {
 
             // Restart from the highest process whose argv wasn't overwritten by a
             // title; e.g. the `sh -c "next dev -p 3000"` that npm spawns.
-            let launcher = tree.map(\.0).first { Self.hasIntactArguments(args(for: $0)) } ?? root
+            var launchChain = [listener]
+            var ancestor = listener
+            while ancestor.pid != root.pid, let parent = processes[ancestor.ppid],
+                  !launchChain.contains(where: { $0.pid == parent.pid }) {
+                launchChain.append(parent)
+                ancestor = parent
+            }
+            let launcher = launchChain.reversed().first { Self.hasIntactArguments(args(for: $0)) } ?? root
 
-            let service = brewService(for: root, labels: &launchdList)
+            let brew = brewService(for: root, labels: &launchdList)
             // A service's data folder can sit inside Homebrew's own git checkout,
             // whose branch says nothing about the service. Name it after the service.
-            if let service {
+            if let brew {
                 project.branch = nil
-                project.name = service
+                project.name = brew
             }
-            let key = "\(socket.port)-\(root.pid)"
+            let key = "\(socket.port)-\(root.pid)-\(root.startTime.timeIntervalSince1970)"
             seenKeys.insert(key)
             let connections = sockets.inboundConnections[socket.port] ?? 0
             if cpuPercent >= 2 || connections > 0 || lastActive[key] == nil {
@@ -127,7 +152,7 @@ final class ScanEngine: @unchecked Sendable {
                 cwdExists: cwd.map { FileManager.default.fileExists(atPath: $0) } ?? true,
                 command: command,
                 launch: args(for: launcher),
-                launchDirectory: ProcessInspector.currentDirectory(launcher.pid) ?? cwd,
+                launchDirectory: inspector.currentDirectory(launcher.pid) ?? cwd,
                 startedAt: root.startTime,
                 project: project,
                 conductorWorkspace: config.linkConductor ? environment["CONDUCTOR_WORKSPACE_NAME"] : nil,
@@ -141,8 +166,8 @@ final class ScanEngine: @unchecked Sendable {
                 lastActive: lastActive[key] ?? now,
                 // Homebrew services are managed like databases: kept out of
                 // Clean up and alerts, and stopped only after confirmation.
-                isProtected: config.protected.contains(socket.command) || service != nil,
-                brewService: service
+                isProtected: config.protected.contains(socket.command) || brew != nil,
+                brewService: brew
             ))
         }
 
@@ -160,9 +185,11 @@ final class ScanEngine: @unchecked Sendable {
     /// (`python3.13`), so a dotted version also matches the plain name.
     static func isAllowed(_ command: String, in allowlist: Set<String>) -> Bool {
         if allowlist.contains(command) { return true }
-        guard let range = command.range(of: #"[0-9]+(\.[0-9]+)+$"#, options: .regularExpression),
-              range.lowerBound > command.startIndex else { return false }
-        return allowlist.contains(String(command[..<range.lowerBound]))
+        return allowlist.contains { name in
+            guard command.hasPrefix(name) else { return false }
+            let suffix = String(command.dropFirst(name.count))
+            return suffix.range(of: #"^[0-9]*(\.[0-9]+)+$"#, options: .regularExpression) != nil
+        }
     }
 
     /// Whether an executable belongs to a desktop app, whose embedded node or
@@ -172,9 +199,20 @@ final class ScanEngine: @unchecked Sendable {
     static func isInsideApp(_ path: String) -> Bool {
         guard let range = path.range(of: ".app/Contents/") else { return false }
         let bundle = path[..<range.lowerBound]
-        if bundle.contains(".framework/") { return false }
         let isXcode = bundle.hasSuffix("/Xcode") || bundle.contains("/Xcode-")
-        return !(isXcode && path[range.upperBound...].hasPrefix("Developer/"))
+        if isXcode && path[range.upperBound...].hasPrefix("Developer/") { return false }
+        // Only standard framework Python wrappers are exempt, not frameworks
+        // embedded inside arbitrary desktop apps.
+        let marker = "/Python.framework/Versions/"
+        if let framework = path.range(of: marker),
+           !path[..<framework.lowerBound].contains(".app/Contents/") {
+            let suffix = path[framework.upperBound...].split(separator: "/")
+            if suffix.count == 6, !suffix[0].isEmpty,
+               suffix.dropFirst().joined(separator: "/") == "Resources/Python.app/Contents/MacOS/Python" {
+                return false
+            }
+        }
+        return true
     }
 
     // MARK: - Homebrew services
@@ -238,15 +276,15 @@ final class ScanEngine: @unchecked Sendable {
     /// Climbs from the listening process to the command the user actually ran,
     /// e.g. from `next-server` up to `npm run dev`. Stops at shells, terminals
     /// and coding agents so stopping a server never takes its launcher with it.
-    /// Also stops at a parent serving another port: that's a separate server
-    /// (e.g. a dev tool that spawns previews), and stopping this one mustn't stop it.
-    func rootProcess(for listener: ProcSnapshot, port: Int, in processes: [pid_t: ProcSnapshot],
-                     listeningPorts: [pid_t: Set<Int>]) -> ProcSnapshot {
+    private func rootProcess(for listener: ProcSnapshot, in processes: [pid_t: ProcSnapshot],
+                             ownership: ProcessTree, service: Set<pid_t>) -> ProcSnapshot {
         var current = listener
+        var visited: Set<pid_t> = [listener.pid]
         while true {
-            guard current.ppid > 1, let parent = processes[current.ppid] else { break }
-            if let ports = listeningPorts[parent.pid], !ports.contains(port) { break }
-            if Self.runners.contains(parent.comm), !isAgent(parent) {
+            guard current.ppid > 1, let parent = processes[current.ppid],
+                  visited.insert(parent.pid).inserted,
+                  !ownership.containsOtherService(below: parent.pid, service: service) else { break }
+            if Self.isAllowed(parent.comm, in: Self.runners), !isAgent(parent) {
                 current = parent
                 continue
             }
@@ -254,7 +292,14 @@ final class ScanEngine: @unchecked Sendable {
             // only when a package manager sits directly above it.
             if Self.shells.contains(parent.comm), parent.ppid > 1,
                let grandparent = processes[parent.ppid],
-               Self.runners.contains(grandparent.comm), !isAgent(grandparent) {
+               Self.isAllowed(grandparent.comm, in: Self.runners), !isAgent(grandparent),
+               visited.insert(grandparent.pid).inserted {
+                // Keep this service's sh -c command when the package manager
+                // above it also supervises other servers.
+                if ownership.containsOtherService(below: grandparent.pid, service: service) {
+                    current = parent
+                    break
+                }
                 current = grandparent
                 continue
             }
@@ -268,19 +313,6 @@ final class ScanEngine: @unchecked Sendable {
         guard let args = args(for: process) else { return false }
         let joined = ([args.executablePath] + args.arguments.prefix(3)).joined(separator: " ")
         return Self.agentPathMarkers.contains(where: joined.contains)
-    }
-
-    private func descendants(of root: pid_t, children: [pid_t: [pid_t]], processes: [pid_t: ProcSnapshot]) -> [(ProcSnapshot, Int)] {
-        guard let rootProcess = processes[root] else { return [] }
-        var result: [(ProcSnapshot, Int)] = []
-        func visit(_ process: ProcSnapshot, depth: Int) {
-            result.append((process, depth))
-            for child in (children[process.pid] ?? []).sorted() {
-                if let childProcess = processes[child] { visit(childProcess, depth: depth + 1) }
-            }
-        }
-        visit(rootProcess, depth: 0)
-        return result
     }
 
     /// Merges environments from the listener up through its launcher. Tools that
@@ -314,7 +346,7 @@ final class ScanEngine: @unchecked Sendable {
 
     private func args(for process: ProcSnapshot) -> ProcArgs? {
         if let cached = argsCache[process.pid], cached.start == process.startTime { return cached.args }
-        let args = ProcessInspector.arguments(process.pid)
+        let args = inspector.arguments(process.pid)
         argsCache[process.pid] = (process.startTime, args)
         return args
     }
