@@ -6,6 +6,7 @@ import Darwin
 struct ClaudeNativeOAuth {
     let accessToken: String
     let scopes: [String]
+    var subscriptionType: String? = nil
 
     static func read(using executable: URL = URL(fileURLWithPath: "/usr/bin/security"), timeout: TimeInterval = 25) throws -> Self {
         let process = Process()
@@ -41,7 +42,7 @@ struct ClaudeNativeOAuth {
               let scopes = oauth["scopes"] as? [String], scopes.contains("user:profile"),
               let expires = oauth["expiresAt"] as? Double, expires / 1000 > Date().timeIntervalSince1970
         else { throw AIUsageError.loginRequired }
-        return Self(accessToken: token, scopes: scopes)
+        return Self(accessToken: token, scopes: scopes, subscriptionType: oauth["subscriptionType"] as? String)
     }
 
     func queryEnvironment(base: [String: String]) -> [String: String] {

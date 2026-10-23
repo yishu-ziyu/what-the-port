@@ -10,6 +10,6 @@ Bundled third-party notices, copied without modification from the pinned depende
 - FlickerDot 0.2.0, copyright 2026 Laura Escobar: LICENSES/FlickerDot.txt.
 - Geist fonts: LICENSES/Geist-OFL.txt (also included with the font files).
 
-Local usage-enabled builds additionally bundle the unmodified CodexBar CLI 0.68.0 and its core resources, created by Peter Steinberger: https://github.com/steipete/CodexBar . Its MIT license is preserved in LICENSES/CodexBar.txt. The reader remains a separate component; WhatThePort does not copy provider passwords into its usage snapshots.
+Local usage-enabled builds additionally bundle the unmodified CodexBar CLI 0.68.0 and its core resources, created by Peter Steinberger: https://github.com/steipete/CodexBar . Its MIT license is preserved in LICENSES/CodexBar.txt. Provider identification icons in Resources/ProviderIcons come from the same CodexBar project (vendored via CodeBurn) under that MIT license; provider names and logos remain the property of their owners and are shown only to identify services. The reader remains a separate component; WhatThePort does not copy provider passwords into its usage snapshots.
 
 This is an independent fork, not an official upstream release. Upstream branding is retained for attribution; future application-management features are plans rather than current functionality.

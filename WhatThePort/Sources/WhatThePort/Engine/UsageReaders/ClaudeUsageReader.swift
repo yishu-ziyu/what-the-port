@@ -25,7 +25,11 @@ struct ClaudeUsageReader: DirectUsageReader {
         let body: Any
         do { body = try await DirectHTTP.json(request, provider: "Claude") }
         catch DirectFailure.loginRequired { throw DirectFailure.loginRequired(Self.expiredReason) }
-        return try Self.reading(from: body)
+        var reading = try Self.reading(from: body)
+        if let plan = oauth.subscriptionType?.trimmingCharacters(in: .whitespaces), !plan.isEmpty {
+            reading.labels["plan"] = "Claude " + plan.capitalized
+        }
+        return reading
     }
 
     static func reading(from body: Any) throws -> DirectReading {

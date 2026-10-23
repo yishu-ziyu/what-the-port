@@ -291,7 +291,9 @@ final class AIUsageStore: ObservableObject {
         self.cacheURL = cacheURL ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("com.whattheport.app.local.zh/ai-usage/\(client.provider.rawValue).json")
         if client.restoresCache, let data = try? Data(contentsOf: self.cacheURL), let cached = try? JSONDecoder().decode(AIUsageSnapshot.self, from: data),
-           cached.owner == client.owner, let valid = cached.validated() {
+           cached.owner == client.owner, let valid = cached.validated(),
+           // A local estimate left by the old helper is not a reading once the provider is queried directly.
+           !(valid.isEstimated && client.usesDirectReader && DirectReaders.reader(for: client.provider) != nil) {
             snapshot = valid
             state = .stale
         }

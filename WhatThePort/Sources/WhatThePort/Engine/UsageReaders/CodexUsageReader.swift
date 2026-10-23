@@ -44,6 +44,11 @@ struct CodexUsageReader: DirectUsageReader {
 
         var reading = DirectReading(source: "oauth", primary: session, secondary: weekly, dataConfidence: "exact")
         if weekly != nil { reading.labels["secondary"] = "Weekly" }
+        if let plan = (root["plan_type"] as? String)?.lowercased(), !plan.isEmpty {
+            let names = ["plus": "ChatGPT Plus", "pro": "ChatGPT Pro", "team": "ChatGPT Team", "business": "ChatGPT Business",
+                         "enterprise": "ChatGPT Enterprise", "edu": "ChatGPT Edu", "free": "ChatGPT Free"]
+            reading.labels["plan"] = names[plan] ?? "ChatGPT " + plan.capitalized
+        }
         return reading
     }
 

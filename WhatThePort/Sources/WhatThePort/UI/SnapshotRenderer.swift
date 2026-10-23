@@ -54,13 +54,17 @@ enum SnapshotRenderer {
         try? FileManager.default.createDirectory(at: output, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         let catalog = AIUsageCatalog()
         var completed = false
-        Task { await catalog.refreshAll(); completed = true }
+        Task { await catalog.refreshAll(); await TokenUsageModel.shared.load(); completed = true }
         let deadline = Date().addingTimeInterval(110)
         while !completed && Date() < deadline { RunLoop.current.run(until: Date().addingTimeInterval(0.05)) }
         guard completed else { fputs("Provider capture timed out\n", stderr); exit(1) }
         let dashboard = AIUsageDashboard(catalog: catalog, refreshOnAppear: false)
             .frame(width: Theme.popoverWidth).background(Theme.popoverBackground)
-        renderWindow(dashboard, size: NSSize(width: Theme.popoverWidth, height: 490), to: output.appendingPathComponent("overview.png"))
+        renderWindow(dashboard, size: NSSize(width: Theme.popoverWidth, height: 540), to: output.appendingPathComponent("overview.png"))
+        // The full scroll content, for reviewing everything below the fold.
+        let full = AIUsageDashboard(catalog: catalog, refreshOnAppear: false, fullHeight: true)
+            .frame(width: Theme.popoverWidth).background(Theme.popoverBackground)
+        renderWindow(full, size: NSHostingView(rootView: full).fittingSize, to: output.appendingPathComponent("overview-full.png"))
         let suite = "wtp-ai-capture-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
