@@ -50,8 +50,9 @@ enum DirectHTTP {
         request.timeoutInterval = 15
         if request.value(forHTTPHeaderField: "Accept") == nil { request.setValue("application/json", forHTTPHeaderField: "Accept") }
         let data: Data, response: URLResponse
-        do { (data, response) = try await session.data(for: request) }
+        do { (data, response) = try await send(request) }
         catch let error as URLError where error.code == .timedOut { throw DirectFailure.transient("\(provider): request timed out") }
+        catch let error as URLError { throw DirectFailure.transient("\(provider): network error (\(error.code.rawValue))") }
         catch { throw DirectFailure.transient("\(provider): network error") }
         guard let http = response as? HTTPURLResponse else { throw DirectFailure.transient("\(provider): no HTTP response") }
         switch http.statusCode {
@@ -63,6 +64,16 @@ enum DirectHTTP {
         }
         guard let object = try? JSONSerialization.jsonObject(with: data) else { throw DirectFailure.invalid("\(provider): response is not JSON") }
         return object
+    }
+
+    /// One retry after a dropped connection: a wake from sleep or a proxy restart often fails the first request.
+    private static func send(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        do { return try await session.data(for: request) }
+        catch let error as URLError where [.networkConnectionLost, .notConnectedToInternet, .cannotConnectToHost,
+                                           .dnsLookupFailed, .secureConnectionFailed].contains(error.code) {
+            try await Task.sleep(for: .seconds(2))
+            return try await session.data(for: request)
+        }
     }
 
     static func retryAfter(_ response: HTTPURLResponse) -> Date? {

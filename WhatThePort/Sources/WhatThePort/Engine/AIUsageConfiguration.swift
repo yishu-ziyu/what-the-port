@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import CryptoKit
 
 /// The selected nine providers, not CodexBar's entire catalog.
@@ -97,6 +98,12 @@ enum AIUsageConfiguration {
 @MainActor
 final class AIUsageCatalog: ObservableObject {
     let stores: [AIUsageStore] = AIUsageProvider.allCases.map { AIUsageStore(client: .system(provider: $0)) }
+    private var forwarding: [AnyCancellable] = []
+
+    init() {
+        // The page groups providers by their state, so any store change must redraw it.
+        forwarding = stores.map { $0.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() } }
+    }
     func store(for provider: AIUsageProvider) -> AIUsageStore { stores.first { $0.provider == provider }! }
     @Published private(set) var refreshingAll = false
     /// The usage page sets this while it is on screen; readings refresh faster then.
