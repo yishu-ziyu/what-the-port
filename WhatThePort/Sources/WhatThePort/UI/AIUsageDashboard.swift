@@ -341,7 +341,8 @@ private struct AIUsageQuotaRow: View {
 
     @ViewBuilder private func subtitle(_ snapshot: AIUsageSnapshot, windowCount: Int) -> some View {
         HStack(spacing: 5) {
-            if store.state == .stale {
+            // A cached reading restored at launch is normal; only flag it once a refresh failed or it is old.
+            if store.state == .stale && (store.issue != nil || Date().timeIntervalSince(snapshot.updatedAt) > 1800) {
                 Circle().fill(Theme.amber).frame(width: 6, height: 6)
                 Text(L10n.format("Last reading %@", snapshot.updatedAt.formatted(.relative(presentation: .named))))
             } else if let plan = snapshot.labels?["plan"] {
