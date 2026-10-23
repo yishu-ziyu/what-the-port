@@ -29,7 +29,7 @@ struct LocalizationTests {
             let name = try #require(L10n.resourceBundle.localizations.first {
                 $0.caseInsensitiveCompare(language) == .orderedSame
             })
-            let url = L10n.resourceBundle.bundleURL.appendingPathComponent("\(name).lproj/Localizable.strings")
+            let url = URL(fileURLWithPath: L10n.resourceBundle.path(forResource: "Localizable", ofType: "strings", inDirectory: nil, forLocalization: name)!)
             let data = try Data(contentsOf: url)
             return try #require(PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? [String: String])
         }

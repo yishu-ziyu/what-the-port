@@ -424,3 +424,21 @@
 "Quota" = "额度";
 
 "Credit" = "积分额度";
+
+/* AI usage overview */
+"Updated %@" = "%@ 更新";
+"Last reading %@" = "上次读数 %@";
+"Only a local estimate; the provider returned no quota." = "只有本地估算，服务商没有返回额度。";
+"The provider returned an invalid reading; it is not shown." = "服务商返回的读数不合理，没有显示。";
+"Rate limited by the provider. Will retry later." = "被服务商限流，稍后自动重试。";
+"Not set up. Open to see what is missing." = "还没配置好，点开看缺什么。";
+"Not queried yet." = "还没查询过。";
+"Resets %@" = "%@ 重置";
+"%d min" = "%d 分";
+"%d h" = "%d 小时";
+"%d d" = "%d 天";
+"Reason: %@" = "原因：%@";
+"Sign in again or check the subscription." = "需要重新登录，或检查订阅。";
+"reset" = "已重置";
+"Total" = "总计";
+"Third Party" = "第三方";

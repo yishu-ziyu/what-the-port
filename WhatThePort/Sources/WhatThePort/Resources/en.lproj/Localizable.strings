@@ -424,3 +424,21 @@
 "Quota" = "Quota";
 
 "Credit" = "Credit";
+
+/* AI usage overview */
+"Updated %@" = "Updated %@";
+"Last reading %@" = "Last reading %@";
+"Only a local estimate; the provider returned no quota." = "Only a local estimate; the provider returned no quota.";
+"The provider returned an invalid reading; it is not shown." = "The provider returned an invalid reading; it is not shown.";
+"Rate limited by the provider. Will retry later." = "Rate limited by the provider. Will retry later.";
+"Not set up. Open to see what is missing." = "Not set up. Open to see what is missing.";
+"Not queried yet." = "Not queried yet.";
+"Resets %@" = "Resets %@";
+"%d min" = "%d min";
+"%d h" = "%d h";
+"%d d" = "%d d";
+"Reason: %@" = "Reason: %@";
+"Sign in again or check the subscription." = "Sign in again or check the subscription.";
+"reset" = "reset";
+"Total" = "Total";
+"Third Party" = "Third Party";

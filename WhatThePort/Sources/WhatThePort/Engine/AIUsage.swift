@@ -41,7 +41,7 @@ struct AIUsageSnapshot: Codable, Sendable {
             switch window.windowMinutes {
             case 300: period = "5-hour"
             case 10080: period = "Weekly quota"
-            case 43200: period = "Monthly quota"
+            case 43200, .some(40320...44640): period = "Monthly quota"
             case 1440: period = "Daily quota"
             case let minutes?: period = "\(minutes) min"
             case nil: period = "Quota"
@@ -50,7 +50,7 @@ struct AIUsageSnapshot: Codable, Sendable {
             switch window.windowMinutes {
             case 300: periodAliases = ["5-hour", "5-hour usage", "5 hours"]
             case 10080: periodAliases = ["weekly", "weekly quota", "7-day usage"]
-            case 43200: periodAliases = ["monthly", "monthly quota"]
+            case 43200, .some(40320...44640): periodAliases = ["monthly", "monthly quota"]
             case 1440: periodAliases = ["daily", "daily quota"]
             default: periodAliases = []
             }
@@ -81,7 +81,29 @@ struct AIUsageDetail: Codable, Sendable {
 }
 
 enum AIUsageError: Error {
-    case helperMissing, loginRequired, unavailable, ownerChanged, timedOut, configurationMissing
+    case helperMissing, loginRequired, unavailable, ownerChanged, timedOut, configurationMissing, rateLimited, invalidReading
+}
+
+extension AIUsageSnapshot {
+    /// Drops windows whose reset time cannot be real (e.g. Unix 0 from a missing field, or years away).
+    /// A snapshot left with no windows is not a reading.
+    func validated() -> AIUsageSnapshot? {
+        let earliest = Date(timeIntervalSince1970: 1_577_836_800) // 2020-01-01
+        func check(_ window: AIUsageWindow?) -> AIUsageWindow? {
+            guard let window else { return nil }
+            guard let reset = window.resetsAt else { return window }
+            // A reset can be at most one window (plus a day of slack) after the reading was taken.
+            let span = window.windowMinutes.map { Double($0) * 60 + 86_400 } ?? 400 * 86_400
+            if reset < earliest || reset > updatedAt.addingTimeInterval(span) { return nil }
+            return window
+        }
+        let result = AIUsageSnapshot(owner: owner, source: source, updatedAt: updatedAt,
+                                 primary: check(primary), secondary: check(secondary), tertiary: check(tertiary),
+                                 labels: labels, extraWindows: extraWindows?.compactMap { extra in
+                                     check(extra.window).map { AIUsageLabeledWindow(title: extra.title, window: $0) } },
+                                 dataConfidence: dataConfidence, details: details)
+        return result.windows.isEmpty ? nil : result
+    }
 }
 
 /// Reads the bundled, version-pinned helper. No shell interpolation or GUI-app fallback.
@@ -93,6 +115,8 @@ struct ProviderUsageClient: Sendable {
     var configURL: URL? = nil
     var restoresCache = true
     var timeout: TimeInterval = 30
+    /// Query the provider directly when a reader exists; otherwise run the bundled helper.
+    var usesDirectReader = false
 
     static func system(provider: AIUsageProvider = .codex) -> Self {
         let helper = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/CodexBarCLI")
@@ -100,8 +124,34 @@ struct ProviderUsageClient: Sendable {
         let owner = provider == .codex ? systemOwner() : AIUsageConfiguration.fingerprint(provider, at: config)
         // Browser/native credentials can change outside this app. Do not restore their disk caches
         // until their active identity can be established without a remote query.
+        // API-key providers are identified by their local configuration row, so their cache is safe to restore.
+        let localIdentity: Set<AIUsageProvider> = [.codex, .kimi, .zai, .minimax, .opencodego, .stepfun]
         return Self(helper: helper, owner: owner ?? "unidentified:\(UUID().uuidString)", checkSystemOwner: true,
-                    provider: provider, configURL: config, restoresCache: provider == .codex)
+                    provider: provider, configURL: config, restoresCache: localIdentity.contains(provider),
+                    usesDirectReader: true)
+    }
+
+    /// Direct reader first. Providers without one use the helper; the snapshot's source says which.
+    func read() async throws -> AIUsageSnapshot {
+        guard usesDirectReader, let reader = DirectReaders.reader(for: provider) else {
+            let client = self
+            return try await Task.detached(priority: .utility) { try client.fetch() }.value
+        }
+        if checkSystemOwner {
+            guard let current = currentOwner() else { throw provider == .codex ? AIUsageError.loginRequired : AIUsageError.configurationMissing }
+            guard current == owner else { throw AIUsageError.ownerChanged }
+        }
+        let record = configURL.flatMap { url -> [String: Any]? in
+            guard let data = try? Data(contentsOf: url),
+                  let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+            return (object["providers"] as? [[String: Any]])?.first { $0["id"] as? String == provider.rawValue }
+        }
+        let reading = try await reader.read(record: record)
+        if checkSystemOwner, currentOwner() != owner { throw AIUsageError.ownerChanged }
+        return AIUsageSnapshot(owner: owner, source: reading.source, updatedAt: Date(),
+                               primary: reading.primary, secondary: reading.secondary, tertiary: reading.tertiary,
+                               labels: reading.labels, extraWindows: reading.extras,
+                               dataConfidence: reading.dataConfidence, details: reading.details)
     }
 
     private func currentOwner() -> String? {
@@ -230,6 +280,8 @@ final class AIUsageStore: ObservableObject {
     @Published private(set) var snapshot: AIUsageSnapshot?
     @Published private(set) var state: State = .unavailable
     @Published private(set) var issue: AIUsageError?
+    /// Why the last query failed, in plain English without secrets. Shown in the detail page.
+    @Published private(set) var issueDetail: String?
     private var client: ProviderUsageClient
     var provider: AIUsageProvider { client.provider }
     private let cacheURL: URL
@@ -239,10 +291,20 @@ final class AIUsageStore: ObservableObject {
         self.cacheURL = cacheURL ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("com.whattheport.app.local.zh/ai-usage/\(client.provider.rawValue).json")
         if client.restoresCache, let data = try? Data(contentsOf: self.cacheURL), let cached = try? JSONDecoder().decode(AIUsageSnapshot.self, from: data),
-           cached.owner == client.owner {
-            snapshot = cached
+           cached.owner == client.owner, let valid = cached.validated() {
+            snapshot = valid
             state = .stale
         }
+    }
+
+    /// When the last query started, successful or not. Keeps failing providers from being retried every tick.
+    private(set) var lastAttempt: Date?
+
+    private var retryKey: String { "aiUsage.retryAfter.\(client.provider.rawValue)" }
+    /// A provider that answered 429 is not asked again before this time, even across restarts.
+    var retryAfter: Date? {
+        get { (UserDefaults.standard.object(forKey: retryKey) as? Date).flatMap { $0 > Date() ? $0 : nil } }
+        set { UserDefaults.standard.set(newValue, forKey: retryKey) }
     }
 
     func refresh() async {
@@ -251,14 +313,23 @@ final class AIUsageStore: ObservableObject {
             let current = ProviderUsageClient.system(provider: client.provider)
             if current.owner != client.owner { snapshot = nil; client = current }
         }
+        if client.usesDirectReader, let until = retryAfter {
+            issue = .rateLimited
+            issueDetail = "rate limited until \(until.formatted(date: .omitted, time: .shortened))"
+            state = snapshot == nil ? .unavailable : .stale
+            return
+        }
         state = .refreshing
+        lastAttempt = Date()
         issue = nil
+        issueDetail = nil
         let client = client
         do {
-            let result = try await Task.detached(priority: .utility) { try client.fetch() }.value
+            let raw = try await client.read()
             if client.checkSystemOwner, ProviderUsageClient.system(provider: client.provider).owner != client.owner {
                 throw AIUsageError.ownerChanged
             }
+            guard let result = raw.validated() else { throw AIUsageError.invalidReading }
             snapshot = result
             state = .ready
             let directory = cacheURL.deletingLastPathComponent()
@@ -269,13 +340,30 @@ final class AIUsageStore: ObservableObject {
                 try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: cacheURL.path)
             }
         } catch {
-            let failure = error as? AIUsageError ?? .unavailable
+            let failure: AIUsageError
+            switch error {
+            case let direct as DirectFailure:
+                issueDetail = direct.reason
+                switch direct {
+                case .loginRequired: failure = .loginRequired
+                case .notConfigured: failure = .configurationMissing
+                case .rateLimited(let until):
+                    failure = .rateLimited
+                    retryAfter = min(until ?? Date().addingTimeInterval(300), Date().addingTimeInterval(3600))
+                case .invalid: failure = .invalidReading
+                case .transient(let reason): failure = reason.contains("timed out") ? .timedOut : .unavailable
+                }
+            case let known as AIUsageError: failure = known
+            default: failure = .unavailable
+            }
+            if failure == .invalidReading && issueDetail == nil { issueDetail = "reset time or percentage out of range" }
             issue = failure
             switch failure {
             case .loginRequired:
                 snapshot = nil
                 state = .loginRequired
-            case .ownerChanged:
+            case .ownerChanged, .configurationMissing:
+                // No key, or the account has no plan: an old reading would describe something that no longer exists.
                 snapshot = nil
                 state = .unavailable
             default:

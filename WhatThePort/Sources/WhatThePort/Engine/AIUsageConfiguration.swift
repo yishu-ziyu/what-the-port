@@ -98,11 +98,51 @@ enum AIUsageConfiguration {
 final class AIUsageCatalog: ObservableObject {
     let stores: [AIUsageStore] = AIUsageProvider.allCases.map { AIUsageStore(client: .system(provider: $0)) }
     func store(for provider: AIUsageProvider) -> AIUsageStore { stores.first { $0.provider == provider }! }
+    @Published private(set) var refreshingAll = false
+    /// The usage page sets this while it is on screen; readings refresh faster then.
+    var isVisible = false { didSet { if isVisible && !oldValue { Task { await refreshDue() } } } }
+    private var schedule: Task<Void, Never>?
+
+    /// Background cadence: every 2 minutes while the page is open, every 15 minutes otherwise,
+    /// doubled in Low Power Mode. Only stale readings are queried.
+    func startSchedule() {
+        guard schedule == nil else { return }
+        schedule = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.refreshDue()
+                try? await Task.sleep(for: .seconds(30))
+            }
+        }
+    }
+
+    private var interval: TimeInterval {
+        let base: TimeInterval = isVisible ? 120 : 900
+        return ProcessInfo.processInfo.isLowPowerModeEnabled ? base * 2 : base
+    }
+
+    func refreshDue() async {
+        let now = Date()
+        let due = stores.filter { store in
+            guard store.state != .refreshing else { return false }
+            let last = max(store.snapshot?.updatedAt ?? .distantPast, store.lastAttempt ?? .distantPast)
+            // A window that reset since the last query makes the reading out of date right away.
+            let rolledOver = store.snapshot?.windows.contains { $0.value.resetsAt.map { $0 > last && $0 <= now } ?? false } ?? false
+            return rolledOver || now.timeIntervalSince(last) > interval
+        }
+        await refresh(due)
+    }
 
     /// Keep at most three readers active; a slow provider must not hold up the next one.
     func refreshAll() async {
+        guard !refreshingAll else { return }
+        refreshingAll = true
+        await refresh(stores)
+        refreshingAll = false
+    }
+
+    private func refresh(_ selected: [AIUsageStore]) async {
         await withTaskGroup(of: Void.self) { group in
-            var iterator = stores.makeIterator()
+            var iterator = selected.makeIterator()
             for _ in 0..<3 {
                 if let store = iterator.next() { group.addTask { await store.refresh() } }
             }

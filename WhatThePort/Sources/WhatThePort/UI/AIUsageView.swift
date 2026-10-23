@@ -35,6 +35,9 @@ struct AIUsageView: View {
                                    ? "Cached reading. Refresh to update."
                                    : "Connection failed. Showing the last successful reading."))
                         .font(Theme.caption).foregroundStyle(Theme.amber)
+                    if let reason = store.issueDetail {
+                        Text(L10n.format("Reason: %@", reason)).font(Theme.caption).foregroundStyle(Theme.text3).textSelection(.enabled)
+                    }
                 }
                 if snapshot.isEstimated {
                     Text(L10n.text("Local estimate, not a provider measurement."))
@@ -103,6 +106,9 @@ struct AIUsageView: View {
                 }.font(Theme.caption).foregroundStyle(Theme.text3)
             } else {
                 Text(emptyMessage).font(Theme.body).foregroundStyle(Theme.text2)
+                if let reason = store.issueDetail {
+                    Text(L10n.format("Reason: %@", reason)).font(Theme.caption).foregroundStyle(Theme.text3).textSelection(.enabled)
+                }
                 if store.state == .loginRequired {
                     Text(L10n.format("Check %@ login or query credentials, then refresh. Other logins are not changed.", store.provider.name))
                         .font(Theme.caption).foregroundStyle(Theme.text3)
@@ -134,6 +140,8 @@ struct AIUsageView: View {
         if store.issue == .configurationMissing { return L10n.text("Provider configuration is unavailable.") }
         if store.issue == .timedOut { return L10n.text("Query timed out. Try refreshing.") }
         if store.issue == .helperMissing { return L10n.text("Usage reader is not installed in this build.") }
+        if store.issue == .invalidReading { return L10n.text("The provider returned an invalid reading; it is not shown.") }
+        if store.issue == .rateLimited { return L10n.text("Rate limited by the provider. Will retry later.") }
         return L10n.text("No valid reading yet. Try refreshing.")
     }
 

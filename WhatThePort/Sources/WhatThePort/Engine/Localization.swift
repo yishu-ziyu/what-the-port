@@ -49,7 +49,8 @@ enum L10n {
             // declared spelling rather than relying on filesystem case rules.
             if let name = resourceBundle.localizations.first(where: {
                 $0.caseInsensitiveCompare(language.rawValue) == .orderedSame
-            }), let bundle = Bundle(url: resourceBundle.bundleURL.appendingPathComponent("\(name).lproj")) {
+            }), let path = resourceBundle.path(forResource: name, ofType: "lproj"), let bundle = Bundle(path: path) {
+                // Newer SwiftPM builds nest resources under Contents/Resources; path(forResource:) finds both layouts.
                 result[language] = bundle
             }
         }
